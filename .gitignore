@@ -19,3 +19,6 @@ yarn-error.log*
 
 # Diagrams (as imagens PNG são versionadas; ignorar apenas artefatos temporários)
 *.gv
+
+# Playwright MCP artifacts
+.playwright-mcp/
