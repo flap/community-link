@@ -1,0 +1,229 @@
+"""Camada de persistência do Community Link.
+
+Fornece uma abstração de repositório com duas implementações:
+
+* ``InMemoryRepository`` — armazenamento em memória (dev/testes).
+* ``DynamoDBRepository`` — single-table design em DynamoDB (produção).
+
+O modelo de dados segue o descrito na especificação técnica (seção 5):
+
+* Comunidade:  PK=``COMMUNITY#{slug}``  SK=``METADATA``
+* Seção:       PK=``COMMUNITY#{slug}``  SK=``SECTION#{id}``
+* Link:        PK=``COMMUNITY#{slug}``  SK=``LINK#{sectionId}#{id}``
+"""
+
+from __future__ import annotations
+
+import threading
+from abc import ABC, abstractmethod
+
+from .models import (
+    Community,
+    CommunityCreate,
+    CommunityUpdate,
+    Link,
+    LinkCreate,
+    LinkUpdate,
+    Section,
+    SectionCreate,
+    SectionUpdate,
+)
+
+
+class NotFoundError(Exception):
+    pass
+
+
+class ConflictError(Exception):
+    pass
+
+
+class Repository(ABC):
+    # Communities
+    @abstractmethod
+    def create_community(self, data: CommunityCreate) -> Community: ...
+
+    @abstractmethod
+    def get_community(self, slug: str) -> Community | None: ...
+
+    @abstractmethod
+    def list_communities(self) -> list[Community]: ...
+
+    @abstractmethod
+    def update_community(self, slug: str, data: CommunityUpdate) -> Community: ...
+
+    @abstractmethod
+    def delete_community(self, slug: str) -> None: ...
+
+    # Sections
+    @abstractmethod
+    def create_section(self, slug: str, data: SectionCreate) -> Section: ...
+
+    @abstractmethod
+    def list_sections(self, slug: str) -> list[Section]: ...
+
+    @abstractmethod
+    def update_section(self, slug: str, section_id: str, data: SectionUpdate) -> Section: ...
+
+    @abstractmethod
+    def delete_section(self, slug: str, section_id: str) -> None: ...
+
+    # Links
+    @abstractmethod
+    def create_link(self, slug: str, data: LinkCreate) -> Link: ...
+
+    @abstractmethod
+    def list_links(self, slug: str) -> list[Link]: ...
+
+    @abstractmethod
+    def update_link(self, slug: str, link_id: str, data: LinkUpdate) -> Link: ...
+
+    @abstractmethod
+    def delete_link(self, slug: str, link_id: str) -> None: ...
+
+
+class InMemoryRepository(Repository):
+    """Implementação em memória, thread-safe, para desenvolvimento e testes."""
+
+    def __init__(self) -> None:
+        self._lock = threading.RLock()
+        self._communities: dict[str, Community] = {}
+        self._sections: dict[str, dict[str, Section]] = {}
+        self._links: dict[str, dict[str, Link]] = {}
+
+    # -- Communities --------------------------------------------------------
+    def create_community(self, data: CommunityCreate) -> Community:
+        with self._lock:
+            if data.slug in self._communities:
+                raise ConflictError(f"slug '{data.slug}' já em uso")
+            community = Community(**data.model_dump())
+            self._communities[community.slug] = community
+            self._sections[community.slug] = {}
+            self._links[community.slug] = {}
+            return community
+
+    def get_community(self, slug: str) -> Community | None:
+        return self._communities.get(slug)
+
+    def list_communities(self) -> list[Community]:
+        return sorted(self._communities.values(), key=lambda c: c.created_at)
+
+    def update_community(self, slug: str, data: CommunityUpdate) -> Community:
+        with self._lock:
+            community = self._communities.get(slug)
+            if community is None:
+                raise NotFoundError(f"comunidade '{slug}' não encontrada")
+            updated = community.model_copy(
+                update={k: v for k, v in data.model_dump(exclude_unset=True).items()}
+            )
+            self._communities[slug] = updated
+            return updated
+
+    def delete_community(self, slug: str) -> None:
+        with self._lock:
+            if slug not in self._communities:
+                raise NotFoundError(f"comunidade '{slug}' não encontrada")
+            self._communities.pop(slug, None)
+            self._sections.pop(slug, None)
+            self._links.pop(slug, None)
+
+    # -- Sections -----------------------------------------------------------
+    def _ensure_community(self, slug: str) -> None:
+        if slug not in self._communities:
+            raise NotFoundError(f"comunidade '{slug}' não encontrada")
+
+    def create_section(self, slug: str, data: SectionCreate) -> Section:
+        with self._lock:
+            self._ensure_community(slug)
+            section = Section(**data.model_dump())
+            self._sections[slug][section.id] = section
+            return section
+
+    def list_sections(self, slug: str) -> list[Section]:
+        self._ensure_community(slug)
+        return sorted(self._sections[slug].values(), key=lambda s: (s.order, s.title))
+
+    def update_section(self, slug: str, section_id: str, data: SectionUpdate) -> Section:
+        with self._lock:
+            self._ensure_community(slug)
+            section = self._sections[slug].get(section_id)
+            if section is None:
+                raise NotFoundError(f"seção '{section_id}' não encontrada")
+            updated = section.model_copy(
+                update={k: v for k, v in data.model_dump(exclude_unset=True).items()}
+            )
+            self._sections[slug][section_id] = updated
+            return updated
+
+    def delete_section(self, slug: str, section_id: str) -> None:
+        with self._lock:
+            self._ensure_community(slug)
+            if section_id not in self._sections[slug]:
+                raise NotFoundError(f"seção '{section_id}' não encontrada")
+            self._sections[slug].pop(section_id, None)
+            # remove links órfãos da seção
+            orphans = [
+                lid for lid, link in self._links[slug].items()
+                if link.section_id == section_id
+            ]
+            for lid in orphans:
+                self._links[slug].pop(lid, None)
+
+    # -- Links --------------------------------------------------------------
+    def create_link(self, slug: str, data: LinkCreate) -> Link:
+        with self._lock:
+            self._ensure_community(slug)
+            if data.section_id not in self._sections[slug]:
+                raise NotFoundError(f"seção '{data.section_id}' não encontrada")
+            link = Link(**data.model_dump())
+            self._links[slug][link.id] = link
+            return link
+
+    def list_links(self, slug: str) -> list[Link]:
+        self._ensure_community(slug)
+        return sorted(self._links[slug].values(), key=lambda link_: (link_.order, link_.created_at))
+
+    def update_link(self, slug: str, link_id: str, data: LinkUpdate) -> Link:
+        with self._lock:
+            self._ensure_community(slug)
+            link = self._links[slug].get(link_id)
+            if link is None:
+                raise NotFoundError(f"link '{link_id}' não encontrado")
+            payload = data.model_dump(exclude_unset=True)
+            if "section_id" in payload and payload["section_id"] not in self._sections[slug]:
+                raise NotFoundError(f"seção '{payload['section_id']}' não encontrada")
+            updated = link.model_copy(update=payload)
+            self._links[slug][link_id] = updated
+            return updated
+
+    def delete_link(self, slug: str, link_id: str) -> None:
+        with self._lock:
+            self._ensure_community(slug)
+            if link_id not in self._links[slug]:
+                raise NotFoundError(f"link '{link_id}' não encontrado")
+            self._links[slug].pop(link_id, None)
+
+
+_repository: Repository | None = None
+
+
+def get_repository() -> Repository:
+    """Retorna o repositório configurado (singleton)."""
+    global _repository
+    if _repository is not None:
+        return _repository
+
+    from .config import get_settings
+
+    settings = get_settings()
+    if settings.use_in_memory_store:
+        _repository = InMemoryRepository()
+    else:
+        from .dynamo_repository import DynamoDBRepository
+
+        _repository = DynamoDBRepository(
+            table_name=settings.dynamodb_table,
+            region=settings.aws_region,
+            endpoint_url=settings.dynamodb_endpoint_url,
+        )
+    return _repository

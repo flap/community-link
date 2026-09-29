@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.env
+
+# Node / frontend
+node_modules/
+frontend/dist/
+npm-debug.log*
+yarn-error.log*
+
+# Sistema
+.DS_Store
+*.log
+
+# Diagrams (as imagens PNG são versionadas; ignorar apenas artefatos temporários)
+*.gv
