@@ -25,6 +25,15 @@ pastel/
 
 ## Como rodar (desenvolvimento)
 
+Atalhos (na raiz do projeto), um em cada aba do terminal:
+
+```bash
+./run-backend.sh    # sobe a API em http://localhost:8080 (repositório em memória)
+./run-frontend.sh   # sobe o frontend em http://localhost:5173
+```
+
+Ou manualmente:
+
 ### Backend
 
 ```bash
