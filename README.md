@@ -10,6 +10,7 @@ Portal agregador de links para comunidades — **SaaS multi-tenant** com foco em
 - **Backend:** Python + FastAPI
 - **Persistência:** Amazon DynamoDB (single-table) — repositório em memória para dev/testes
 - **Deploy (alvo):** CloudFront + API Gateway + AWS Lambda, domínio `awscommunity.com.br`
+- **Identidade visual:** referência em [awscommunityday.com.br](https://awscommunityday.com.br) (paleta azul-marinho + laranja AWS, tipografia Inter) — materializada no tema `aws` (padrão)
 
 ```
 pastel/

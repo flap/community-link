@@ -24,6 +24,7 @@ function applyTheme() {
   root.style.setProperty('--surface', t.surface)
   root.style.setProperty('--text', t.text)
   root.style.setProperty('--accent', t.accent)
+  if (t.muted) root.style.setProperty('--muted', t.muted)
 }
 
 async function load() {

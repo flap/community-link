@@ -98,7 +98,7 @@ class CommunityBase(BaseModel):
     name: str = Field(min_length=1, max_length=120)
     slug: str = Field(min_length=1, max_length=60)
     description: str | None = Field(default=None, max_length=500)
-    theme: str = "default"
+    theme: str = "aws"
     logo_url: str | None = Field(default=None, max_length=2048)
 
     @field_validator("slug")

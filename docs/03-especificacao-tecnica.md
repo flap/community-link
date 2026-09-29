@@ -118,6 +118,44 @@ Desenvolver um **portal agregador de links SaaS multi-tenant** para comunidades,
 - **Prioridade:** Could
 - **Fase:** 2
 
+### RF-014: Identidade Visual de Referência (AWS Community Day Brasil)
+- **Descrição:** o layout e a identidade visual do produto seguem como referência o site **awscommunityday.com.br**.
+- **Regra de negócio:** o tema padrão e os componentes visuais adotam a paleta, a tipografia e os padrões de UI descritos na seção "Identidade Visual" abaixo.
+- **Critério de aceite:**
+  - Fundo escuro azul-marinho, superfícies em tom mais claro, acento laranja AWS.
+  - Tipografia **Inter**; títulos fortes.
+  - Header fixo translúcido; hero centralizado com CTA laranja; cards arredondados com *pill* de destaque.
+- **Prioridade:** Should
+- **Fase:** 1
+
+---
+
+## Identidade Visual (Referência: awscommunityday.com.br)
+
+O design segue a linguagem visual do **AWS Community Day Brasil** (`awscommunityday.com.br`):
+
+### Paleta de cores
+
+| Token | Valor | Uso |
+|-------|-------|-----|
+| `background` | `#0f1729` | Fundo principal (azul-marinho escuro) |
+| `surface` | `#1d283a` | Cards e superfícies elevadas |
+| `text` | `#ffffff` | Texto principal |
+| `muted` | `#94a3b8` | Texto secundário |
+| `accent` | `#ff8800` | Cor de destaque AWS (CTAs, pills, links) |
+
+### Tipografia
+- Família **Inter** (com fallback sans-serif do sistema).
+- Títulos em peso forte (700–800); *hero* com título grande e caixa alta.
+
+### Padrões de UI
+- **Header fixo** translúcido (fundo `rgba(15,23,41,0.8)` + blur), logo à esquerda e navegação à direita, borda inferior sutil.
+- **Hero centralizado**: título grande, subtítulo em `muted`, botão CTA laranja arredondado.
+- **Cards** com cantos arredondados (radius ~16px), possível imagem de destaque e **pill** de status em laranja.
+- **Botões** primários em laranja com texto escuro; secundários com contorno.
+
+> Esta identidade é materializada no tema **`aws`** (tema padrão do produto) e nos componentes do frontend.
+
 ---
 
 ## 3. Requisitos Não-Funcionais
@@ -319,4 +357,4 @@ erDiagram
 
 ---
 
-> Rastreabilidade: cada feature do `ideas.MD` foi mapeada em requisitos — cadastro de comunidade/usuário (RF-001, RF-002, RF-011), seções (RF-003), tipos de link (RF-004), emojis (RF-005), embeds (RF-006), foto de destaque (RF-007), fácil de atualizar (RF-008), destaque visual/temas (RF-009), página pública (RF-010), filtros (RF-012) e pesquisas (RF-013).
+> Rastreabilidade: cada feature do `ideas.MD` foi mapeada em requisitos — cadastro de comunidade/usuário (RF-001, RF-002, RF-011), seções (RF-003), tipos de link (RF-004), emojis (RF-005), embeds (RF-006), foto de destaque (RF-007), fácil de atualizar (RF-008), destaque visual/temas (RF-009), página pública (RF-010), filtros (RF-012) e pesquisas (RF-013). A identidade visual segue como referência o site awscommunityday.com.br (RF-014).

@@ -22,7 +22,7 @@ const selected = ref(null)
 const sections = ref([])
 const links = ref([])
 
-const newCommunity = ref({ name: '', slug: '', description: '', theme: 'default' })
+const newCommunity = ref({ name: '', slug: '', description: '', theme: 'aws' })
 const newSection = ref({ title: '', order: 0 })
 const newLink = ref({ section_id: '', type: 'site', title: '', url: '', emoji: '', embed: false })
 
@@ -49,7 +49,7 @@ async function addCommunity() {
   error.value = ''
   try {
     await createCommunity({ ...newCommunity.value })
-    newCommunity.value = { name: '', slug: '', description: '', theme: 'default' }
+    newCommunity.value = { name: '', slug: '', description: '', theme: 'aws' }
     await loadCommunities()
   } catch (e) { error.value = e.message }
 }

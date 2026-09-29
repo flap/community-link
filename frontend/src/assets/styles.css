@@ -1,17 +1,20 @@
+/* Identidade visual de referência: awscommunityday.com.br */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
 :root {
-  --bg: #0f172a;
-  --surface: #1e293b;
-  --text: #f8fafc;
-  --accent: #38bdf8;
+  --bg: #0f1729;
+  --surface: #1d283a;
+  --text: #ffffff;
+  --accent: #ff8800;
   --muted: #94a3b8;
-  --radius: 14px;
+  --radius: 16px;
 }
 
 * { box-sizing: border-box; }
 
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   background: var(--bg);
   color: var(--text);
   line-height: 1.5;
@@ -27,6 +30,25 @@ a { color: var(--accent); }
 
 .wide { max-width: 960px; }
 
+/* ------- Header fixo translúcido ------- */
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  background: rgba(15, 23, 41, 0.8);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.site-header .brand { font-weight: 800; letter-spacing: 0.02em; }
+.site-header .brand .accent { color: var(--accent); }
+.site-header nav a { color: var(--text); text-decoration: none; margin-left: 20px; font-weight: 500; }
+.site-header nav a:hover { color: var(--accent); }
+
+/* ------- Botões ------- */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -34,13 +56,15 @@ a { color: var(--accent); }
   background: var(--accent);
   color: #0b1220;
   border: none;
-  border-radius: 10px;
-  padding: 10px 16px;
-  font-weight: 600;
+  border-radius: 12px;
+  padding: 12px 22px;
+  font-weight: 700;
+  font-family: inherit;
   cursor: pointer;
   text-decoration: none;
+  letter-spacing: 0.02em;
 }
-.btn.secondary { background: transparent; color: var(--text); border: 1px solid var(--muted); }
+.btn.secondary { background: transparent; color: var(--text); border: 1px solid rgba(255,255,255,0.25); }
 .btn.danger { background: #ef4444; color: #fff; }
 .btn:hover { filter: brightness(1.05); }
 
@@ -52,6 +76,7 @@ input, select, textarea {
   background: #0b1220;
   color: var(--text);
   font-size: 14px;
+  font-family: inherit;
 }
 
 label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px; }
@@ -70,45 +95,79 @@ label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px
 .error { color: #fca5a5; font-size: 13px; margin: 8px 0; }
 .grid { display: grid; gap: 12px; }
 
-/* ------- Página pública da comunidade ------- */
-.community {
-  min-height: 100vh;
-  padding: 40px 16px 80px;
+/* ------- Pill de destaque (estilo "PRÓXIMO EVENTO") ------- */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 136, 0, 0.15);
+  color: var(--accent);
+  border: 1px solid rgba(255, 136, 0, 0.5);
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
+.pill .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
+
+/* ------- Hero centralizado (estilo Community Day) ------- */
+.hero {
+  text-align: center;
+  padding: 64px 16px 48px;
+  max-width: 760px;
+  margin: 0 auto;
+}
+.hero .eyebrow { color: var(--accent); font-weight: 700; letter-spacing: 0.3em; font-size: 13px; }
+.hero h1 {
+  font-size: clamp(32px, 6vw, 56px);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  margin: 12px 0;
+  line-height: 1.05;
+}
+.hero p { color: var(--muted); font-size: 18px; margin: 0 0 28px; }
+
+/* ------- Página pública da comunidade ------- */
+.community { min-height: 100vh; padding: 40px 16px 80px; }
 .community-header { text-align: center; margin-bottom: 28px; }
 .community-logo {
-  width: 88px; height: 88px; border-radius: 50%;
-  object-fit: cover; margin: 0 auto 12px; display: block;
+  width: 96px; height: 96px; border-radius: 50%;
+  object-fit: cover; margin: 0 auto 14px; display: block;
   border: 3px solid var(--accent);
 }
-.community-title { font-size: 26px; margin: 0 0 6px; }
+.community-title {
+  font-size: clamp(24px, 5vw, 34px); font-weight: 800;
+  text-transform: uppercase; letter-spacing: 0.02em; margin: 0 0 6px;
+}
 .community-desc { color: var(--muted); margin: 0; }
 
 .section-title {
-  font-size: 15px; text-transform: uppercase; letter-spacing: 0.08em;
-  color: var(--muted); margin: 28px 0 10px;
+  font-size: 14px; text-transform: uppercase; letter-spacing: 0.1em;
+  color: var(--accent); font-weight: 700; margin: 30px 0 12px;
 }
 
 .link-card {
   display: flex; align-items: center; gap: 12px;
   background: var(--surface); border-radius: var(--radius);
   padding: 14px 16px; margin-bottom: 10px; text-decoration: none;
-  color: var(--text); transition: transform 0.08s ease;
+  color: var(--text); transition: transform 0.08s ease, border-color 0.08s ease;
   border: 1px solid rgba(255, 255, 255, 0.06);
 }
-.link-card:hover { transform: translateY(-2px); }
+.link-card:hover { transform: translateY(-2px); border-color: rgba(255, 136, 0, 0.5); }
 .link-emoji { font-size: 22px; }
-.link-thumb { width: 44px; height: 44px; border-radius: 8px; object-fit: cover; }
-.link-title { font-weight: 600; }
+.link-thumb { width: 48px; height: 48px; border-radius: 10px; object-fit: cover; }
+.link-title { font-weight: 700; }
 .link-type { font-size: 12px; color: var(--muted); }
 .embed-wrap {
   position: relative; padding-bottom: 56.25%; height: 0;
   border-radius: var(--radius); overflow: hidden; margin-bottom: 10px;
 }
-.embed-wrap iframe {
-  position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;
-}
+.embed-wrap iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0; }
 
 @media (max-width: 480px) {
-  .community-title { font-size: 22px; }
+  .site-header { padding: 12px 14px; }
+  .site-header nav a { margin-left: 12px; }
 }
