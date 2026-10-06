@@ -1,9 +1,12 @@
 """Testes básicos da API (Fase 1) usando o repositório em memória."""
 
 import os
+import tempfile
 
 os.environ.setdefault("CL_USE_IN_MEMORY_STORE", "true")
 os.environ.setdefault("CL_ADMIN_TOKEN", "test-token")
+os.environ.setdefault("CL_MEDIA_DIR", tempfile.mkdtemp(prefix="cl-media-"))
+os.environ.setdefault("CL_MAX_UPLOAD_BYTES", str(1024 * 1024))  # 1MB nos testes
 
 from fastapi.testclient import TestClient  # noqa: E402
 
@@ -202,3 +205,65 @@ def test_reorder_rejects_foreign_link():
         headers=AUTH, json={"ordered_ids": [link["id"]]},
     )
     assert r.status_code == 409
+
+
+def test_upload_image_and_use_as_featured_photo():
+    # upload válido (PNG mínimo) -> retorna image_url (RF-007)
+    png = (
+        b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"
+        b"\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\nIDATx\x9cc\x00"
+        b"\x01\x00\x00\x05\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82"
+    )
+    r = client.post(
+        "/api/admin/uploads",
+        headers=AUTH,
+        files={"file": ("foto.png", png, "image/png")},
+    )
+    assert r.status_code == 201, r.text
+    image_url = r.json()["image_url"]
+    assert image_url.startswith("/api/media/")
+
+    # a imagem é servida pela API em dev
+    assert client.get(image_url).status_code == 200
+
+    # usar como foto de destaque em um link
+    client.post(
+        "/api/admin/communities",
+        headers=AUTH,
+        json={"name": "Foto", "slug": "foto-flow"},
+    )
+    sec = client.post(
+        "/api/admin/communities/foto-flow/sections", headers=AUTH, json={"title": "S"}
+    ).json()
+    link = client.post(
+        "/api/admin/communities/foto-flow/links",
+        headers=AUTH,
+        json={
+            "section_id": sec["id"], "type": "site", "title": "Com foto",
+            "url": "https://x.com", "image_url": image_url,
+        },
+    ).json()
+    assert link["image_url"] == image_url
+
+    # aparece na página pública
+    pub = client.get("/api/communities/foto-flow").json()
+    assert pub["sections"][0]["links"][0]["image_url"] == image_url
+
+
+def test_upload_rejects_invalid_type():
+    r = client.post(
+        "/api/admin/uploads",
+        headers=AUTH,
+        files={"file": ("a.txt", b"hello", "text/plain")},
+    )
+    assert r.status_code == 400
+
+
+def test_upload_rejects_oversize():
+    big = b"\x89PNG\r\n\x1a\n" + b"0" * (1024 * 1024 + 10)
+    r = client.post(
+        "/api/admin/uploads",
+        headers=AUTH,
+        files={"file": ("big.png", big, "image/png")},
+    )
+    assert r.status_code == 400

@@ -5,7 +5,7 @@ import {
   deleteCommunity, deleteLink, deleteSection,
   getAdminToken, listCommunities, listLinks, listSections,
   listThemes, reorderLinks, reorderSections, setAdminToken,
-  updateCommunity, updateLink, updateSection,
+  updateCommunity, updateLink, updateSection, uploadImage,
 } from '../api'
 
 const LINK_TYPES = [
@@ -25,7 +25,7 @@ const links = ref([])
 
 const newCommunity = ref({ name: '', slug: '', description: '', theme: 'aws' })
 const newSection = ref({ title: '' })
-const newLink = ref({ section_id: '', type: 'site', title: '', url: '', emoji: '', embed: false })
+const newLink = ref({ section_id: '', type: 'site', title: '', url: '', emoji: '', image_url: '', embed: false })
 
 // edição inline
 const editCommunity = ref(null)      // objeto editável da comunidade selecionada
@@ -36,6 +36,19 @@ const linkDraft = ref({})
 
 const themeNames = computed(() => Object.keys(themes.value))
 const selectedCommunity = computed(() => communities.value.find((c) => c.slug === selected.value))
+const uploading = ref(false)
+
+async function handleUpload(event, target) {
+  const file = event.target.files && event.target.files[0]
+  if (!file) return
+  error.value = ''
+  uploading.value = true
+  try {
+    const url = await uploadImage(file)
+    target.value.image_url = url
+  } catch (e) { error.value = e.message }
+  finally { uploading.value = false; event.target.value = '' }
+}
 
 function saveToken() {
   setAdminToken(token.value.trim())
@@ -145,8 +158,9 @@ async function addLink() {
   try {
     const payload = { ...newLink.value, order: linksOf(newLink.value.section_id).length }
     if (!payload.emoji) delete payload.emoji
+    if (!payload.image_url) delete payload.image_url
     await createLink(selected.value, payload)
-    newLink.value = { section_id: payload.section_id, type: 'site', title: '', url: '', emoji: '', embed: false }
+    newLink.value = { section_id: payload.section_id, type: 'site', title: '', url: '', emoji: '', image_url: '', embed: false }
     await refreshContent()
   } catch (e) { error.value = e.message }
 }
@@ -156,12 +170,14 @@ function startEditLink(l) {
   linkDraft.value = {
     type: l.type, title: l.title, url: l.url, emoji: l.emoji || '',
     author: l.author || '', embed: l.embed, section_id: l.section_id,
+    image_url: l.image_url || '',
   }
 }
 async function saveLink(id) {
   try {
     const payload = { ...linkDraft.value }
     if (!payload.emoji) payload.emoji = null
+    if (!payload.image_url) payload.image_url = null
     await updateLink(selected.value, id, payload)
     editingLinkId.value = null
     await refreshContent()
@@ -343,6 +359,13 @@ onMounted(() => { if (token.value) loadCommunities() })
                   </div>
                   <input v-model="linkDraft.title" placeholder="Título" />
                   <input v-model="linkDraft.url" placeholder="https://…" />
+                  <div class="row" style="align-items:center">
+                    <label style="margin:0">Foto de destaque:</label>
+                    <input type="file" accept="image/jpeg,image/png,image/webp"
+                           @change="(e) => handleUpload(e, linkDraft)" style="flex:1" />
+                    <img v-if="linkDraft.image_url" :src="linkDraft.image_url" class="thumb-preview" alt="preview" />
+                    <button v-if="linkDraft.image_url" class="btn secondary small" @click="linkDraft.image_url = ''">Remover</button>
+                  </div>
                   <div class="row">
                     <label style="margin:0">Seção:</label>
                     <select v-model="linkDraft.section_id" style="flex:1">
@@ -358,6 +381,7 @@ onMounted(() => { if (token.value) loadCommunities() })
               </template>
               <template v-else>
                 <span class="drag-handle" title="Arraste para reordenar">⠿</span>
+                <img v-if="l.image_url" :src="l.image_url" class="thumb-preview" alt="" />
                 <span class="link-body">
                   <span v-if="l.emoji">{{ l.emoji }}</span>
                   <strong>{{ l.title }}</strong>
@@ -394,12 +418,24 @@ onMounted(() => { if (token.value) loadCommunities() })
               <div><label>Título</label><input v-model="newLink.title" placeholder="Palestra sobre Lambda" /></div>
               <div><label>URL</label><input v-model="newLink.url" placeholder="https://…" /></div>
               <div><label>Emoji (opcional)</label><input v-model="newLink.emoji" placeholder="🎥" maxlength="8" /></div>
+              <div>
+                <label>Foto de destaque (opcional)</label>
+                <div class="row" style="align-items:center">
+                  <input type="file" accept="image/jpeg,image/png,image/webp"
+                         @change="(e) => handleUpload(e, newLink)" style="flex:1" />
+                  <img v-if="newLink.image_url" :src="newLink.image_url" class="thumb-preview" alt="preview" />
+                  <button v-if="newLink.image_url" class="btn secondary small" @click="newLink.image_url = ''">Remover</button>
+                </div>
+              </div>
               <div class="row" style="align-items:center; margin-top:24px">
                 <input id="embed" v-model="newLink.embed" type="checkbox" style="width:auto" />
                 <label for="embed" style="margin:0">Exibir como embed (vídeo)</label>
               </div>
             </div>
-            <div class="row" style="margin-top:12px"><button class="btn" @click="addLink">Adicionar link</button></div>
+            <div class="row" style="margin-top:12px">
+              <button class="btn" @click="addLink">Adicionar link</button>
+              <span v-if="uploading" class="muted">enviando imagem…</span>
+            </div>
           </div>
         </div>
       </template>
@@ -425,4 +461,5 @@ onMounted(() => { if (token.value) loadCommunities() })
 .link-body { flex: 1; }
 .drag-handle { cursor: grab; color: var(--muted); user-select: none; font-size: 16px; }
 .btn.small { padding: 6px 10px; font-size: 12px; border-radius: 8px; }
+.thumb-preview { width: 40px; height: 40px; border-radius: 8px; object-fit: cover; border: 1px solid rgba(255,255,255,0.12); }
 </style>

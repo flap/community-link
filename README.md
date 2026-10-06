@@ -80,6 +80,8 @@ CL_USE_IN_MEMORY_STORE=true CL_ADMIN_TOKEN=test-token python -m pytest -q
 | PATCH/DELETE | `/api/admin/communities/{slug}/sections/{id}` | Edita/exclui seção | Sim |
 | GET/POST | `/api/admin/communities/{slug}/links` | Links | Sim |
 | PATCH/DELETE | `/api/admin/communities/{slug}/links/{id}` | Edita/exclui link | Sim |
+| POST | `/api/admin/uploads` | Upload de foto de destaque (JPEG/PNG/WebP ≤5MB) → `image_url` | Sim |
+| GET | `/api/media/{nome}` | Serve imagem enviada (apenas dev; em prod via S3/CloudFront) | Não |
 
 Autenticação (MVP): header `Authorization: Bearer <CL_ADMIN_TOKEN>`.
 

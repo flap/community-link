@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import FileResponse
 
+from ..config import get_settings
 from ..embeds import build_embed
 from ..models import CommunityPublic, SectionWithLinks
 from ..repository import get_repository
@@ -16,6 +18,30 @@ router = APIRouter(tags=["public"])
 def list_themes() -> dict[str, dict]:
     """Lista os temas visuais disponíveis (RF-009)."""
     return THEMES
+
+
+@router.get("/media/{name}")
+def get_media(name: str) -> FileResponse:
+    """Serve imagens enviadas localmente em dev (foto de destaque — RF-007).
+
+    Em produção, as imagens são servidas diretamente pelo S3/CloudFront e
+    esta rota não é utilizada.
+    """
+    settings = get_settings()
+    if settings.s3_bucket:
+        raise HTTPException(status_code=404, detail="mídia servida via S3")
+    # evita path traversal: aceita apenas o nome do arquivo
+    if "/" in name or "\\" in name or ".." in name:
+        raise HTTPException(status_code=400, detail="nome inválido")
+    from ..storage import LocalStorage, get_storage
+
+    storage = get_storage()
+    if not isinstance(storage, LocalStorage):
+        raise HTTPException(status_code=404, detail="mídia indisponível")
+    path = storage.path_for(name)
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="imagem não encontrada")
+    return FileResponse(path)
 
 
 @router.get("/communities/{slug}", response_model=CommunityPublic)

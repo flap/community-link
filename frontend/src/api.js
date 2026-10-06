@@ -36,6 +36,23 @@ export const getPublicCommunity = (slug) => request(`/communities/${slug}`)
 
 // -- Admin -----------------------------------------------------------------
 export const listCommunities = () => request('/admin/communities', { auth: true })
+
+// Upload de imagem (foto de destaque — RF-007). Retorna { image_url }.
+export async function uploadImage(file) {
+  const form = new FormData()
+  form.append('file', file)
+  const res = await fetch(`${BASE}/admin/uploads`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${getAdminToken()}` },
+    body: form,
+  })
+  const data = await res.json().catch(() => null)
+  if (!res.ok) {
+    const detail = data && data.detail ? data.detail : `Erro ${res.status}`
+    throw new Error(typeof detail === 'string' ? detail : JSON.stringify(detail))
+  }
+  return data.image_url
+}
 export const createCommunity = (payload) =>
   request('/admin/communities', { method: 'POST', body: payload, auth: true })
 export const updateCommunity = (slug, payload) =>

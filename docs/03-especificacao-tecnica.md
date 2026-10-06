@@ -69,9 +69,9 @@ Desenvolver um **portal agregador de links SaaS multi-tenant** para comunidades,
 - **Fase:** 1
 
 ### RF-007: Foto de Destaque do Link
-- **Descrição:** permitir enviar uma imagem de destaque para um link.
-- **Regra de negócio:** imagens são armazenadas em S3; formatos JPEG/PNG/WebP; tamanho máximo definido (ex.: 5 MB).
-- **Critério de aceite:** a imagem enviada é exibida como destaque do link na página pública; arquivo inválido é rejeitado com mensagem.
+- **Descrição:** permitir enviar uma imagem de destaque para um link, por upload de arquivo na área administrativa (ao criar ou editar o link).
+- **Regra de negócio:** o upload passa por um endpoint dedicado (`POST /api/admin/uploads`) que valida formato (JPEG/PNG/WebP) e tamanho (≤ 5 MB) e retorna a URL pública (`image_url`); em produção as imagens ficam em **S3**, em dev são salvas localmente e servidas pela API em `/api/media/{nome}`.
+- **Critério de aceite:** a imagem enviada é exibida como destaque do link na página pública e como miniatura na área administrativa; arquivo com formato não suportado ou acima do limite é rejeitado com mensagem (RN-005).
 - **Prioridade:** Should
 - **Fase:** 1
 

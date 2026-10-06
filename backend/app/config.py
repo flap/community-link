@@ -30,6 +30,13 @@ class Settings(BaseSettings):
 
     # S3 (fotos de destaque / logos)
     s3_bucket: str | None = None
+    # Prefixo público para servir imagens (em dev, servidas pela própria API)
+    media_base_url: str = "/api/media"
+    # Diretório local de uploads (usado quando não há bucket S3 configurado)
+    media_dir: str = "./media"
+    # Limite de upload (5 MB) e formatos aceitos (RN-005)
+    max_upload_bytes: int = 5 * 1024 * 1024
+    allowed_image_types: str = "image/jpeg,image/png,image/webp"
 
     # CORS
     cors_origins: str = "*"

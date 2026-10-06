@@ -6,7 +6,7 @@ ricos com emoji/foto/embed (RF-004..RF-007). Publicação é imediata (RF-008).
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile
 
 from ..auth import require_admin
 from ..models import (
@@ -22,6 +22,7 @@ from ..models import (
     SectionUpdate,
 )
 from ..repository import ConflictError, NotFoundError, get_repository
+from ..storage import UploadError, get_storage
 from ..themes import theme_exists
 
 router = APIRouter(prefix="/admin", tags=["admin"], dependencies=[Depends(require_admin)])
@@ -29,6 +30,23 @@ router = APIRouter(prefix="/admin", tags=["admin"], dependencies=[Depends(requir
 
 def _repo():
     return get_repository()
+
+
+# -- Upload de imagem (RF-007 / RN-005) ------------------------------------
+@router.post("/uploads", status_code=201)
+async def upload_image(file: UploadFile) -> dict[str, str]:
+    """Recebe uma imagem (JPEG/PNG/WebP, <=5MB) e retorna a URL pública.
+
+    A URL retornada deve ser usada no campo ``image_url`` do link (foto de
+    destaque). Em dev, o arquivo é salvo localmente e servido pela API; em
+    produção, é enviado ao S3.
+    """
+    content = await file.read()
+    try:
+        url = get_storage().save(content, file.content_type or "")
+    except UploadError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"image_url": url}
 
 
 # -- Communities ------------------------------------------------------------
