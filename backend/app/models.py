@@ -138,6 +138,44 @@ class ReorderRequest(BaseModel):
     ordered_ids: list[str] = Field(min_length=1)
 
 
+# ---------------------------------------------------------------------------
+# Administradores e convites (RF-021)
+# ---------------------------------------------------------------------------
+class CommunityAdmin(BaseModel):
+    sub: str
+    email: str | None = None
+    added_at: str = Field(default_factory=_now_iso)
+
+
+class AdminInvite(BaseModel):
+    email: str = Field(min_length=3, max_length=254)
+    invited_by: str | None = None
+    invited_at: str = Field(default_factory=_now_iso)
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, v: str) -> str:
+        v = v.strip().lower()
+        if "@" not in v:
+            raise ValueError("e-mail inválido")
+        return v
+
+
+class InviteRequest(BaseModel):
+    email: str = Field(min_length=3, max_length=254)
+
+
+class CommunityAdmins(BaseModel):
+    admins: list[CommunityAdmin]
+    invites: list[AdminInvite]
+
+
+class MeResponse(BaseModel):
+    sub: str
+    email: str | None
+    auth_mode: str
+
+
 class PublicLink(Link):
     """Link enriquecido para a página pública, com metadados de embed (RF-006)."""
 

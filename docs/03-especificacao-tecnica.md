@@ -102,7 +102,7 @@ Desenvolver um **portal agregador de links SaaS multi-tenant** para comunidades,
 - **Critério de aceite:** sem a credencial correta, endpoints de escrita retornam 401; com a credencial, a edição é permitida.
 - **Prioridade:** Must
 - **Fase:** 1
-- **Observação:** solução temporária, a ser substituída por autenticação real.
+- **Observação:** solução temporária da Fase 1. **Substituída na Fase 2 pela autenticação com Supabase Auth (RF-019 a RF-022).** O modo de credencial fixa permanece disponível apenas para desenvolvimento/testes (`CL_AUTH_MODE=static`).
 
 ### RF-012: Filtros de Conteúdo
 - **Descrição:** filtrar links por data e por tipo de conteúdo.
@@ -165,6 +165,51 @@ Desenvolver um **portal agregador de links SaaS multi-tenant** para comunidades,
   - [ ] A página pública exibe seções e links na nova ordem.
 - **Prioridade:** Should
 - **Fase:** 1
+
+### RF-019: Autenticação de Administradores com Supabase Auth
+- **Descrição:** os administradores autenticam-se por meio do **Supabase Auth** (serviço gerenciado), com **e-mail + senha** e com os **provedores sociais suportados pelo Supabase** (Google, GitHub e demais que forem habilitados no projeto).
+- **Regra de negócio:** o Supabase emite um **JWT** (access token) após o login; o backend valida assinatura, emissor (`iss`), audiência (`aud=authenticated`) e expiração em toda requisição administrativa. A página pública continua sem autenticação.
+- **Critério de aceite:**
+  - [ ] Login com e-mail/senha e cadastro (sign-up) funcionam na tela própria.
+  - [ ] Login social com ao menos Google e GitHub funciona (provedores configurados no projeto Supabase).
+  - [ ] Requisição administrativa sem token válido retorna 401.
+  - [ ] Token expirado ou com assinatura inválida retorna 401.
+- **Prioridade:** Must
+- **Fase:** 2
+- **Decisão de stack:** escolhido por ser a opção gerenciada de menor custo em escala (free tier de 50 mil MAU; plano Pro US$ 25/mês inclui 100 mil MAU e cobra US$ 0,00325/MAU excedente — cerca de US$ 2.950/mês a 1 milhão de MAU, contra ~US$ 4.600 do Cognito Lite e ~US$ 9.500 do Auth0).
+
+### RF-020: Tela de Login Própria
+- **Descrição:** a autenticação usa uma **tela própria** no frontend Vue (não a UI hospedada do provedor), seguindo a identidade visual do produto (RF-014).
+- **Regra de negócio:** a tela oferece login/cadastro por e-mail+senha, botões dos provedores sociais habilitados e recuperação de senha; usa o SDK `@supabase/supabase-js` com o fluxo **PKCE**. Após o login, o usuário é redirecionado à área administrativa.
+- **Critério de aceite:**
+  - [ ] Tela de login no padrão visual do tema `aws`.
+  - [ ] Erros de autenticação exibidos de forma amigável.
+  - [ ] Sessão persistida e renovada automaticamente pelo SDK; logout disponível no header.
+- **Prioridade:** Must
+- **Fase:** 2
+
+### RF-021: Autorização por Comunidade (Administradores)
+- **Descrição:** a autorização (quem pode editar qual comunidade) é feita **na aplicação**, com base na identidade autenticada (`sub` e `email` do JWT), concretizando o RF-002.
+- **Regra de negócio:**
+  - Quem cria a comunidade torna-se automaticamente seu administrador.
+  - Um administrador pode **convidar outro administrador por e-mail**; o convite é efetivado no primeiro acesso autenticado do convidado (match pelo `email` do token), sem necessidade de chaves privilegiadas do Supabase no backend.
+  - Toda operação de escrita em uma comunidade exige que o usuário seja administrador dela; caso contrário, **403**.
+  - A listagem administrativa mostra apenas as comunidades do usuário.
+- **Critério de aceite:**
+  - [ ] Criador vira admin; outro usuário autenticado recebe 403 ao editar.
+  - [ ] Após convite por e-mail, o convidado passa a editar a comunidade.
+  - [ ] Admin pode listar e remover administradores (não pode remover o último).
+- **Prioridade:** Must
+- **Fase:** 2
+
+### RF-022: Compatibilidade de Modos de Autenticação
+- **Descrição:** o backend suporta dois modos, selecionados por configuração: `supabase` (produção) e `static` (credencial fixa, apenas dev/testes — RF-011).
+- **Regra de negócio:** em `static`, o usuário autenticado é um administrador sintético de desenvolvimento; em `supabase`, a identidade vem do JWT. A lógica de autorização (RF-021) é a mesma nos dois modos.
+- **Critério de aceite:**
+  - [ ] Testes automatizados cobrem ambos os modos.
+  - [ ] Modo padrão em produção é `supabase`.
+- **Prioridade:** Should
+- **Fase:** 2
 
 ---
 
@@ -267,6 +312,14 @@ O design segue a linguagem visual do **AWS Community Day Brasil** (`awscommunity
 - **Frequência:** Real-time
 - **Fallback:** páginas de erro padronizadas (4xx/5xx)
 
+### INT-006: Frontend/Backend ↔ Supabase Auth (Fase 2)
+- **Direção:** Bidirecional (frontend ↔ Supabase para login; backend ← Supabase para chaves de verificação)
+- **Protocolo:** HTTPS — SDK `@supabase/supabase-js` no frontend (fluxo PKCE); no backend, validação do JWT via **JWKS** (`/auth/v1/.well-known/jwks.json`, chaves assimétricas) ou, para projetos legados, via **JWT secret** (HS256) configurado em variável de ambiente
+- **Dados trafegados:** credenciais do usuário (somente frontend ↔ Supabase), access token JWT (frontend → backend no header `Authorization: Bearer`), chaves públicas (Supabase → backend, com cache)
+- **Frequência:** Real-time; JWKS em cache (ex.: 1 h)
+- **Fallback:** falha ao obter JWKS → responder 503 nas rotas administrativas (página pública não é afetada)
+- **Configuração:** frontend `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`; backend `CL_AUTH_MODE=supabase`, `CL_SUPABASE_URL`, opcional `CL_SUPABASE_JWT_SECRET`
+
 ### Deploy e Domínio
 
 - **Domínio de produção:** `awscommunity.com.br`
@@ -328,6 +381,18 @@ erDiagram
     }
 ```
 
+### Administradores e convites (Fase 2 — RF-021)
+
+O vínculo admin ↔ comunidade é gravado em **duas direções** para permitir as duas consultas principais (comunidades de um usuário; admins de uma comunidade) sem GSI:
+
+| Item | PK | SK | Atributos |
+|------|----|----|-----------|
+| Admin da comunidade | `COMMUNITY#{slug}` | `ADMIN#{sub}` | `email`, `added_at` |
+| Comunidade do admin (espelho) | `USER#{sub}` | `COMMUNITY#{slug}` | — |
+| Convite pendente | `COMMUNITY#{slug}` | `INVITE#{email}` | `invited_by`, `invited_at` |
+
+`sub` é o identificador do usuário emitido pelo Supabase Auth (claim `sub` do JWT). O convite é efetivado quando um usuário autenticado cujo `email` coincide com o convite acessa a comunidade: o convite é convertido em admin (dupla gravação) e removido.
+
 ### Campos críticos
 
 - **`slug`**: chave de acesso público e isolamento multi-tenant (único).
@@ -364,11 +429,22 @@ erDiagram
 - **Condição:** Se a requisição alterar dados (criar/editar/excluir).
 - **Ação:** Então exigir a credencial fixa configurada no backend.
 - **Exceção:** Caso a credencial esteja ausente/incorreta, retornar 401.
+- **Fase 2:** substituída pela RN-006.
 
 ### RN-005: Validação de Upload de Imagem
 - **Condição:** Se houver upload de foto de destaque/logo.
 - **Ação:** Então validar formato (JPEG/PNG/WebP) e tamanho (≤ 5 MB) e armazenar em S3.
 - **Exceção:** Caso inválido, rejeitar com mensagem específica.
+
+### RN-006: Autenticação e Autorização por Comunidade (Fase 2)
+- **Condição:** Se a requisição for a uma rota administrativa.
+- **Ação:** Então validar o JWT do Supabase (assinatura, `iss`, `aud`, `exp`) e identificar o usuário (`sub`, `email`); para operações sobre uma comunidade, verificar que o usuário é administrador dela (efetivando convite pendente por e-mail, se houver).
+- **Exceção:** Token ausente/inválido → **401**; usuário autenticado sem vínculo com a comunidade → **403**.
+
+### RN-007: Último Administrador
+- **Condição:** Se um administrador tentar remover um administrador de uma comunidade.
+- **Ação:** Então permitir apenas se restar ao menos um administrador após a remoção.
+- **Exceção:** Caso seja o último, rejeitar com **409** (a comunidade não pode ficar sem administradores).
 
 ---
 
@@ -376,9 +452,10 @@ erDiagram
 
 | Fase | Escopo | Entregáveis | Dependências |
 |------|--------|-------------|--------------|
-| 1 | Cadastro de comunidade, seções, links ricos, emojis, embeds, foto de destaque, temas, edição fácil, página pública, auth simplificada | RF-001 a RF-011; RNF-001 a RNF-006; INT-001 a INT-005 | Conta AWS; stack Vue + FastAPI + DynamoDB provisionada |
-| 2 | Filtros e pesquisa | RF-012, RF-013; GSIs de busca | Fase 1 concluída; volume de dados para busca |
-| Futura | Autenticação completa, analytics, domínio custom, monetização | A especificar | Definição de produto |
+| 1 | Cadastro de comunidade, seções, links ricos, emojis, embeds, foto de destaque, temas, edição fácil, página pública, auth simplificada, edição/reordenação | RF-001 a RF-011, RF-014 a RF-018; RNF-001 a RNF-006; INT-001 a INT-005 | Conta AWS; stack Vue + FastAPI + DynamoDB provisionada |
+| 2a | **Autenticação e autorização** com Supabase Auth: login e-mail/senha e social, tela própria, admins por comunidade e convites | RF-019 a RF-022; INT-006; RN-006, RN-007 | Projeto Supabase criado; provedores sociais (Google, GitHub…) configurados no Supabase |
+| 2b | Filtros e pesquisa | RF-012, RF-013; GSIs de busca | Fase 2a concluída; volume de dados para busca |
+| Futura | Analytics, domínio custom, monetização | A especificar | Definição de produto |
 
 ---
 
@@ -386,7 +463,9 @@ erDiagram
 
 | Risco | Probabilidade | Impacto | Mitigação |
 |-------|---------------|---------|-----------|
-| Credencial fixa exposta (MVP) | Alta | Alto | Restringir ao ambiente de teste; priorizar autenticação real antes de produção aberta |
+| Credencial fixa exposta (MVP) | Alta | Alto | Restrita a dev/testes (`CL_AUTH_MODE=static`); produção usa Supabase Auth (Fase 2a) |
+| Dependência de fornecedor externo (Supabase) fora da AWS | Média | Médio | Backend valida JWT localmente (JWKS em cache) — indisponibilidade do Supabase afeta apenas novos logins, não as páginas públicas; dados de autorização ficam no DynamoDB |
+| Rotação de chaves JWT do Supabase | Baixa | Médio | Validação via JWKS com cache e refetch em `kid` desconhecido |
 | Provedores bloqueiam embed (Instagram/TikTok/LinkedIn) | Média | Médio | Fallback para link externo; testar oEmbed por provedor |
 | Modelagem DynamoDB inadequada para busca (Fase 2) | Média | Médio | Definir padrões de acesso cedo; usar GSIs; avaliar serviço de busca dedicado se necessário |
 | Cold start de Lambda afeta latência | Média | Baixo | Otimizar pacote; considerar provisioned concurrency em endpoints críticos |
@@ -395,4 +474,4 @@ erDiagram
 
 ---
 
-> Rastreabilidade: cada feature do `ideas.MD` foi mapeada em requisitos — cadastro de comunidade/usuário (RF-001, RF-002, RF-011), seções (RF-003), tipos de link (RF-004), emojis (RF-005), embeds (RF-006), foto de destaque (RF-007), fácil de atualizar (RF-008), destaque visual/temas (RF-009), página pública (RF-010), filtros (RF-012) e pesquisas (RF-013). A identidade visual segue como referência o site awscommunityday.com.br (RF-014). A edição e reordenação de conteúdo cobrem comunidade (RF-015), seções (RF-016), links e movimentação entre seções (RF-017) e reordenação por ↑/↓ e arrastar-e-soltar (RF-018).
+> Rastreabilidade: cada feature do `ideas.MD` foi mapeada em requisitos — cadastro de comunidade/usuário (RF-001, RF-002, RF-011), seções (RF-003), tipos de link (RF-004), emojis (RF-005), embeds (RF-006), foto de destaque (RF-007), fácil de atualizar (RF-008), destaque visual/temas (RF-009), página pública (RF-010), filtros (RF-012) e pesquisas (RF-013). A identidade visual segue como referência o site awscommunityday.com.br (RF-014). A edição e reordenação de conteúdo cobrem comunidade (RF-015), seções (RF-016), links e movimentação entre seções (RF-017) e reordenação por ↑/↓ e arrastar-e-soltar (RF-018). A Fase 2a cobre autenticação com Supabase Auth (RF-019), tela de login própria (RF-020), autorização por comunidade com convites (RF-021) e compatibilidade de modos (RF-022).

@@ -1,5 +1,7 @@
 // Cliente HTTP simples para a API do Community Link.
-// A credencial administrativa (MVP) é um bearer token guardado no localStorage.
+// Autenticação (RF-019/RF-022): com Supabase configurado, usa o access token da
+// sessão; sem Supabase (modo static de dev), usa o token fixo do localStorage.
+import { getSession } from './supabase'
 
 const BASE = '/api'
 
@@ -11,9 +13,15 @@ export function setAdminToken(token) {
   localStorage.setItem('cl_admin_token', token)
 }
 
+export async function getAccessToken() {
+  const session = await getSession()
+  if (session && session.access_token) return session.access_token
+  return getAdminToken()
+}
+
 async function request(path, { method = 'GET', body, auth = false } = {}) {
   const headers = { 'Content-Type': 'application/json' }
-  if (auth) headers['Authorization'] = `Bearer ${getAdminToken()}`
+  if (auth) headers['Authorization'] = `Bearer ${await getAccessToken()}`
 
   const res = await fetch(`${BASE}${path}`, {
     method,
@@ -25,7 +33,9 @@ async function request(path, { method = 'GET', body, auth = false } = {}) {
   const data = await res.json().catch(() => null)
   if (!res.ok) {
     const detail = data && data.detail ? data.detail : `Erro ${res.status}`
-    throw new Error(typeof detail === 'string' ? detail : JSON.stringify(detail))
+    const err = new Error(typeof detail === 'string' ? detail : JSON.stringify(detail))
+    err.status = res.status
+    throw err
   }
   return data
 }
@@ -35,7 +45,17 @@ export const listThemes = () => request('/themes')
 export const getPublicCommunity = (slug) => request(`/communities/${slug}`)
 
 // -- Admin -----------------------------------------------------------------
+export const me = () => request('/admin/me', { auth: true })
 export const listCommunities = () => request('/admin/communities', { auth: true })
+
+// Administradores e convites (RF-021)
+export const listAdmins = (slug) => request(`/admin/communities/${slug}/admins`, { auth: true })
+export const inviteAdmin = (slug, email) =>
+  request(`/admin/communities/${slug}/admins`, { method: 'POST', body: { email }, auth: true })
+export const removeAdmin = (slug, sub) =>
+  request(`/admin/communities/${slug}/admins/${encodeURIComponent(sub)}`, { method: 'DELETE', auth: true })
+export const removeInvite = (slug, email) =>
+  request(`/admin/communities/${slug}/invites/${encodeURIComponent(email)}`, { method: 'DELETE', auth: true })
 
 // Upload de imagem (foto de destaque — RF-007). Retorna { image_url }.
 export async function uploadImage(file) {
@@ -43,7 +63,7 @@ export async function uploadImage(file) {
   form.append('file', file)
   const res = await fetch(`${BASE}/admin/uploads`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${getAdminToken()}` },
+    headers: { Authorization: `Bearer ${await getAccessToken()}` },
     body: form,
   })
   const data = await res.json().catch(() => null)

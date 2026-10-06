@@ -55,13 +55,15 @@ Benefícios esperados:
 - **Entregáveis:** cadastro de comunidade (slug único), seções, tipos ricos de link, emojis, embeds, foto de destaque, temas visuais, página pública responsiva, acesso administrativo simplificado (credencial fixa para testes).
 - **Prazo estimado:** a definir com o time (escopo enxuto e incremental).
 
-### Fase 2 — Descoberta
-- **Objetivo:** facilitar encontrar conteúdo na plataforma.
-- **Entregáveis:** filtros (data, tipo de conteúdo) e pesquisa (data, conteúdo, autores, comunidades).
+### Fase 2 — Autenticação e Descoberta
+- **Objetivo:** abrir a plataforma a múltiplos administradores com login seguro e facilitar encontrar conteúdo.
+- **Entregáveis (2a):** autenticação com **Supabase Auth** — e-mail+senha e login social (Google, GitHub…), tela de login própria, administradores por comunidade e convites por e-mail.
+- **Entregáveis (2b):** filtros (data, tipo de conteúdo) e pesquisa (data, conteúdo, autores, comunidades).
+- **Custo da autenticação:** gratuito até 50 mil usuários ativos/mês; ~US$ 25/mês até 100 mil; ~US$ 2.950/mês no cenário extremo de 1 milhão de MAU (opção gerenciada mais barata avaliada).
 - **Prazo estimado:** após validação da Fase 1.
 
 ### Evolução Futura (fora do MVP)
-- Autenticação completa de usuários, analytics de cliques, domínio customizado e monetização.
+- Analytics de cliques, domínio customizado e monetização.
 
 <div style="page-break-after: always;"></div>
 
@@ -88,7 +90,7 @@ Cenário MVP (região us-east-1) considerado na estimativa:
 ## Próximos Passos
 
 1. Validar o escopo da Fase 1 e priorizar os temas visuais iniciais.
-2. Definir o mecanismo de autenticação definitivo (substituindo a credencial fixa).
+2. Criar o projeto Supabase e configurar os provedores sociais (Google, GitHub) para a Fase 2a.
 3. Provisionar a infraestrutura AWS e iniciar o desenvolvimento incremental do MVP.
 
 <div style="page-break-after: always;"></div>

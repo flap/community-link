@@ -1,19 +1,23 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import {
   createCommunity, createLink, createSection,
   deleteCommunity, deleteLink, deleteSection,
-  getAdminToken, listCommunities, listLinks, listSections,
-  listThemes, reorderLinks, reorderSections, setAdminToken,
-  updateCommunity, updateLink, updateSection, uploadImage,
+  inviteAdmin, listAdmins, listCommunities, listLinks, listSections,
+  listThemes, me, removeAdmin, removeInvite, reorderLinks, reorderSections,
+  setAdminToken, updateCommunity, updateLink, updateSection, uploadImage,
 } from '../api'
+import { authEnabled, signOut } from '../supabase'
+
+const router = useRouter()
 
 const LINK_TYPES = [
   'video', 'site', 'calendario', 'pessoa', 'linkedin',
   'instagram', 'tiktok', 'builder_center', 'meetup',
 ]
 
-const token = ref(getAdminToken())
+const currentUser = ref(null)
 const authed = ref(false)
 const error = ref('')
 const themes = ref({})
@@ -22,6 +26,8 @@ const communities = ref([])
 const selected = ref(null)
 const sections = ref([])
 const links = ref([])
+const admins = ref({ admins: [], invites: [] })
+const inviteEmail = ref('')
 
 const newCommunity = ref({ name: '', slug: '', description: '', theme: 'aws' })
 const newSection = ref({ title: '' })
@@ -38,6 +44,34 @@ const themeNames = computed(() => Object.keys(themes.value))
 const selectedCommunity = computed(() => communities.value.find((c) => c.slug === selected.value))
 const uploading = ref(false)
 
+async function logout() {
+  if (authEnabled) await signOut()
+  else setAdminToken('')
+  router.push('/login')
+}
+
+// -- Administradores e convites (RF-021) ------------------------------------
+async function refreshAdmins() {
+  if (!selected.value) return
+  admins.value = await listAdmins(selected.value)
+}
+async function sendInvite() {
+  error.value = ''
+  try {
+    admins.value = await inviteAdmin(selected.value, inviteEmail.value.trim())
+    inviteEmail.value = ''
+  } catch (e) { error.value = e.message }
+}
+async function dropAdmin(sub) {
+  if (!confirm('Remover este administrador?')) return
+  try { await removeAdmin(selected.value, sub); await refreshAdmins() }
+  catch (e) { error.value = e.message }
+}
+async function dropInvite(email) {
+  try { await removeInvite(selected.value, email); await refreshAdmins() }
+  catch (e) { error.value = e.message }
+}
+
 async function handleUpload(event, target) {
   // `target` é o objeto reativo (newLink/linkDraft) já desembrulhado pelo template.
   const file = event.target.files && event.target.files[0]
@@ -51,19 +85,16 @@ async function handleUpload(event, target) {
   finally { uploading.value = false; event.target.value = '' }
 }
 
-function saveToken() {
-  setAdminToken(token.value.trim())
-  loadCommunities()
-}
-
 async function loadCommunities() {
   error.value = ''
   try {
     themes.value = await listThemes()
+    currentUser.value = await me()
     communities.value = await listCommunities()
     authed.value = true
   } catch (e) {
     authed.value = false
+    if (e.status === 401) { router.push('/login'); return }
     error.value = e.message
   }
 }
@@ -94,6 +125,7 @@ async function selectCommunity(slug) {
     ? { name: c.name, description: c.description || '', theme: c.theme, logo_url: c.logo_url || '' }
     : null
   await refreshContent()
+  await refreshAdmins()
 }
 
 async function saveCommunity() {
@@ -225,31 +257,22 @@ async function onDropLink(sectionId, targetId) {
   drag.value = { kind: null, sectionId: null, id: null }
 }
 
-onMounted(() => { if (token.value) loadCommunities() })
+onMounted(loadCommunities)
 </script>
 
 <template>
   <div>
     <header class="site-header">
       <span class="brand">community<span class="accent">.link</span></span>
-      <nav>
+      <nav class="row" style="gap:16px">
         <RouterLink to="/">Início</RouterLink>
-        <RouterLink to="/admin">Administração</RouterLink>
+        <span v-if="currentUser" class="muted">{{ currentUser.email || currentUser.sub }}</span>
+        <button class="btn secondary small" @click="logout">Sair</button>
       </nav>
     </header>
 
     <div class="container wide">
       <h1>Administração</h1>
-
-      <!-- Login (credencial fixa do MVP) -->
-      <div class="card">
-        <label>Credencial administrativa (token)</label>
-        <div class="row">
-          <input v-model="token" type="password" placeholder="Bearer token" style="flex:1" />
-          <button class="btn" @click="saveToken">Entrar</button>
-        </div>
-        <p class="muted">MVP: token fixo definido no backend (CL_ADMIN_TOKEN).</p>
-      </div>
 
       <p v-if="error" class="error">{{ error }}</p>
 
@@ -301,6 +324,32 @@ onMounted(() => { if (token.value) loadCommunities() })
             <div><label>Logo (URL)</label><input v-model="editCommunity.logo_url" placeholder="https://…" /></div>
           </div>
           <div class="row" style="margin-top:12px"><button class="btn" @click="saveCommunity">Salvar comunidade</button></div>
+        </div>
+
+        <!-- Administradores e convites (RF-002 / RF-021) -->
+        <div v-if="selected" class="card">
+          <h3 style="margin-top:0">Administradores · /{{ selected }}</h3>
+          <div v-for="a in admins.admins" :key="a.sub" class="spread" style="padding:6px 0; border-bottom:1px solid #334155">
+            <span>
+              <strong>{{ a.email || a.sub }}</strong>
+              <span v-if="currentUser && a.sub === currentUser.sub" class="muted"> · você</span>
+            </span>
+            <button class="btn danger small" :disabled="admins.admins.length <= 1" @click="dropAdmin(a.sub)">Remover</button>
+          </div>
+
+          <div v-if="admins.invites.length" style="margin-top:12px">
+            <p class="muted" style="margin:0 0 4px">Convites pendentes</p>
+            <div v-for="i in admins.invites" :key="i.email" class="spread" style="padding:4px 0">
+              <span>{{ i.email }} <span class="muted">· aguardando primeiro acesso</span></span>
+              <button class="btn secondary small" @click="dropInvite(i.email)">Cancelar</button>
+            </div>
+          </div>
+
+          <form class="row" style="margin-top:12px" @submit.prevent="sendInvite">
+            <input v-model="inviteEmail" type="email" required placeholder="e-mail do novo administrador" style="flex:1" />
+            <button class="btn" type="submit">Convidar</button>
+          </form>
+          <p class="muted">O convidado passa a administrar a comunidade ao entrar com este e-mail.</p>
         </div>
 
         <!-- Seções e links -->

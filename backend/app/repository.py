@@ -18,7 +18,9 @@ import threading
 from abc import ABC, abstractmethod
 
 from .models import (
+    AdminInvite,
     Community,
+    CommunityAdmin,
     CommunityCreate,
     CommunityUpdate,
     Link,
@@ -88,6 +90,34 @@ class Repository(ABC):
     @abstractmethod
     def reorder_links(self, slug: str, section_id: str, ordered_ids: list[str]) -> list[Link]: ...
 
+    # Administradores e convites (RF-021)
+    @abstractmethod
+    def add_admin(self, slug: str, sub: str, email: str | None) -> CommunityAdmin: ...
+
+    @abstractmethod
+    def remove_admin(self, slug: str, sub: str) -> None: ...
+
+    @abstractmethod
+    def list_admins(self, slug: str) -> list[CommunityAdmin]: ...
+
+    @abstractmethod
+    def is_admin(self, slug: str, sub: str) -> bool: ...
+
+    @abstractmethod
+    def list_user_communities(self, sub: str) -> list[Community]: ...
+
+    @abstractmethod
+    def add_invite(self, slug: str, email: str, invited_by: str | None) -> AdminInvite: ...
+
+    @abstractmethod
+    def list_invites(self, slug: str) -> list[AdminInvite]: ...
+
+    @abstractmethod
+    def remove_invite(self, slug: str, email: str) -> None: ...
+
+    @abstractmethod
+    def has_invite(self, slug: str, email: str) -> bool: ...
+
 
 class InMemoryRepository(Repository):
     """Implementação em memória, thread-safe, para desenvolvimento e testes."""
@@ -97,6 +127,9 @@ class InMemoryRepository(Repository):
         self._communities: dict[str, Community] = {}
         self._sections: dict[str, dict[str, Section]] = {}
         self._links: dict[str, dict[str, Link]] = {}
+        # RF-021: admins por comunidade (slug -> sub -> admin) e convites (slug -> email -> convite)
+        self._admins: dict[str, dict[str, CommunityAdmin]] = {}
+        self._invites: dict[str, dict[str, AdminInvite]] = {}
 
     # -- Communities --------------------------------------------------------
     def create_community(self, data: CommunityCreate) -> Community:
@@ -107,6 +140,8 @@ class InMemoryRepository(Repository):
             self._communities[community.slug] = community
             self._sections[community.slug] = {}
             self._links[community.slug] = {}
+            self._admins[community.slug] = {}
+            self._invites[community.slug] = {}
             return community
 
     def get_community(self, slug: str) -> Community | None:
@@ -133,6 +168,8 @@ class InMemoryRepository(Repository):
             self._communities.pop(slug, None)
             self._sections.pop(slug, None)
             self._links.pop(slug, None)
+            self._admins.pop(slug, None)
+            self._invites.pop(slug, None)
 
     # -- Sections -----------------------------------------------------------
     def _ensure_community(self, slug: str) -> None:
@@ -239,6 +276,57 @@ class InMemoryRepository(Repository):
             for position, lid in enumerate(ordered_ids):
                 links[lid] = links[lid].model_copy(update={"order": position})
             return [link for link in self.list_links(slug) if link.section_id == section_id]
+
+    # -- Administradores e convites (RF-021) --------------------------------
+    def add_admin(self, slug: str, sub: str, email: str | None) -> CommunityAdmin:
+        with self._lock:
+            self._ensure_community(slug)
+            admin = CommunityAdmin(sub=sub, email=email)
+            self._admins[slug][sub] = admin
+            return admin
+
+    def remove_admin(self, slug: str, sub: str) -> None:
+        with self._lock:
+            self._ensure_community(slug)
+            if sub not in self._admins[slug]:
+                raise NotFoundError(f"administrador '{sub}' não encontrado")
+            self._admins[slug].pop(sub, None)
+
+    def list_admins(self, slug: str) -> list[CommunityAdmin]:
+        self._ensure_community(slug)
+        return sorted(self._admins[slug].values(), key=lambda a: a.added_at)
+
+    def is_admin(self, slug: str, sub: str) -> bool:
+        return sub in self._admins.get(slug, {})
+
+    def list_user_communities(self, sub: str) -> list[Community]:
+        slugs = [s for s, admins in self._admins.items() if sub in admins]
+        return sorted(
+            (self._communities[s] for s in slugs if s in self._communities),
+            key=lambda c: c.created_at,
+        )
+
+    def add_invite(self, slug: str, email: str, invited_by: str | None) -> AdminInvite:
+        with self._lock:
+            self._ensure_community(slug)
+            invite = AdminInvite(email=email, invited_by=invited_by)
+            self._invites[slug][invite.email] = invite
+            return invite
+
+    def list_invites(self, slug: str) -> list[AdminInvite]:
+        self._ensure_community(slug)
+        return sorted(self._invites[slug].values(), key=lambda i: i.invited_at)
+
+    def remove_invite(self, slug: str, email: str) -> None:
+        with self._lock:
+            self._ensure_community(slug)
+            email = email.strip().lower()
+            if email not in self._invites[slug]:
+                raise NotFoundError(f"convite para '{email}' não encontrado")
+            self._invites[slug].pop(email, None)
+
+    def has_invite(self, slug: str, email: str) -> bool:
+        return email.strip().lower() in self._invites.get(slug, {})
 
 
 _repository: Repository | None = None

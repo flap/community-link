@@ -113,3 +113,31 @@ Na Fase 2, o visitante pode buscar e filtrar conteúdo por data, tipo, autor e c
 - Etapas eliminadas: busca manual em páginas longas.
 - Tempo reduzido: descoberta de conteúdo em segundos.
 - Automações aplicadas: filtros combinados e indexação para pesquisa.
+
+---
+
+### 4. Autenticação e Autorização com Supabase Auth (Fase 2a)
+
+![Fluxo To-Be Autenticação](./to-be-autenticacao.png)
+
+O administrador faz login em uma **tela própria** (e-mail+senha ou provedor social via OAuth/PKCE). O **Supabase Auth** valida e emite um JWT. O backend valida o token localmente (JWKS em cache) e verifica, no DynamoDB, se o usuário é administrador da comunidade — efetivando convites pendentes por e-mail. Token inválido → 401; sem vínculo → 403.
+
+#### Descrição das Etapas
+
+| # | Etapa | Responsável | Sistema | Tempo Estimado | Observações |
+|---|-------|-------------|---------|----------------|-------------|
+| 1 | Acessa `/admin` | Admin | Frontend Vue | — | Redireciona para login se não autenticado |
+| 2 | Escolhe método (e-mail ou social) | Admin | Tela de login própria | — | Identidade visual do tema `aws` |
+| 3 | Valida credenciais / provedor | Sistema | Supabase Auth | <1s | Google, GitHub e demais provedores habilitados |
+| 4 | Emite JWT (sub, email, exp) | Sistema | Supabase Auth | <1s | Sessão renovada pelo SDK |
+| 5 | Envia `Authorization: Bearer` | Frontend | API | — | Em toda rota administrativa |
+| 6 | Valida JWT (JWKS em cache) | Sistema | FastAPI (Lambda) | <10ms | Inválido → 401 |
+| 7 | Verifica admin da comunidade | Sistema | DynamoDB | <20ms | `COMMUNITY#slug` / `ADMIN#sub` |
+| 8 | Efetiva convite por e-mail | Sistema | DynamoDB | <20ms | `INVITE#email` → `ADMIN#sub` |
+| 9 | Autoriza ou nega (403) | Sistema | FastAPI | — | Último admin não pode ser removido |
+
+#### Ganhos Esperados
+
+- Etapas eliminadas: credencial fixa compartilhada.
+- Segurança: identidade individual por administrador, login social e MFA do provedor.
+- Custo: gratuito até 50 mil usuários ativos/mês; ~US$ 2.950/mês a 1 milhão de MAU.

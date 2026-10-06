@@ -17,8 +17,15 @@ class Settings(BaseSettings):
     app_name: str = "Community Link"
     public_domain: str = "awscommunity.com.br"
 
-    # Autenticação simplificada (MVP): credencial fixa no backend
+    # Autenticação (RF-022): "static" = credencial fixa (dev/testes); "supabase" = JWT do Supabase Auth
+    auth_mode: str = "static"
+    # Autenticação simplificada (MVP/dev): credencial fixa no backend
     admin_token: str = "dev-admin-token-change-me"
+    # Supabase Auth (RF-019 / INT-006)
+    supabase_url: str | None = None            # ex.: https://xyz.supabase.co
+    supabase_jwt_secret: str | None = None     # projetos legados (HS256); se vazio, usa JWKS
+    supabase_audience: str = "authenticated"
+    supabase_jwks_ttl_seconds: int = 3600
 
     # DynamoDB
     dynamodb_table: str = "community-link"

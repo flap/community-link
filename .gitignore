@@ -25,3 +25,4 @@ backend/media/
 
 # Playwright MCP artifacts
 .playwright-mcp/
+frontend/.env

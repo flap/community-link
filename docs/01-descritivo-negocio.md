@@ -31,7 +31,7 @@ Permitir que qualquer comunidade crie e mantenha, com baixo esforço, uma págin
 - **Fase 1:** cadastro de comunidade, seções, tipos ricos de link, emojis, embeds, foto de destaque, edição fácil.
 - **Fase 2:** filtros (data, tipo de conteúdo) e pesquisa (data, conteúdo, autores, comunidades).
 
-> **Nota sobre autenticação:** o fluxo de acesso definitivo ainda será definido. Para o MVP e testes, o backend utilizará **uma credencial fixa** (autenticação simplificada), a ser substituída por um mecanismo completo em iteração futura.
+> **Nota sobre autenticação:** no MVP (Fase 1) o backend utilizou **uma credencial fixa** (autenticação simplificada) apenas para testes. Na **Fase 2** a autenticação dos administradores passa a ser feita com **Supabase Auth** (serviço gerenciado) — e-mail+senha e login social (Google, GitHub e demais provedores do Supabase) — com tela de login própria, escolhido por ser a opção gerenciada de menor custo em escala (free tier de 50 mil usuários ativos/mês; ~US$ 2.950/mês a 1 milhão de MAU).
 
 ---
 
@@ -123,7 +123,7 @@ Hoje, comunidades que desejam divulgar seus canais e conteúdos enfrentam um cen
 - O produto é **multi-tenant**: várias comunidades convivem na mesma plataforma, isoladas logicamente por identificador (slug/ID de comunidade).
 - Um **usuário pode administrar várias comunidades**, e uma **comunidade pode ter múltiplos administradores**.
 - A personalização visual é feita **dentro de um conjunto de temas/padrões pré-definidos** pela plataforma (não é um editor livre de design).
-- O acesso administrativo no MVP usa **uma credencial fixa no backend** apenas para testes; o fluxo de autenticação definitivo será especificado depois.
+- O acesso administrativo no MVP (Fase 1) usou **uma credencial fixa no backend** apenas para testes; a partir da Fase 2 a autenticação é feita com **Supabase Auth** (e-mail+senha e provedores sociais), e a autorização por comunidade é controlada pela própria aplicação.
 
 ### Restrições
 

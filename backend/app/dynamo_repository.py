@@ -13,7 +13,9 @@ import boto3
 from botocore.exceptions import ClientError
 
 from .models import (
+    AdminInvite,
     Community,
+    CommunityAdmin,
     CommunityCreate,
     CommunityUpdate,
     Link,
@@ -28,6 +30,10 @@ from .repository import ConflictError, NotFoundError, Repository
 
 def _pk(slug: str) -> str:
     return f"COMMUNITY#{slug}"
+
+
+def _user_pk(sub: str) -> str:
+    return f"USER#{sub}"
 
 
 class DynamoDBRepository(Repository):
@@ -87,6 +93,10 @@ class DynamoDBRepository(Repository):
         with self._table.batch_writer() as batch:
             for i in items:
                 batch.delete_item(Key={"PK": i["PK"], "SK": i["SK"]})
+                # remove o espelho USER#sub / COMMUNITY#slug dos administradores
+                if str(i["SK"]).startswith("ADMIN#"):
+                    sub = str(i["SK"]).split("#", 1)[1]
+                    batch.delete_item(Key={"PK": _user_pk(sub), "SK": _pk(slug)})
 
     # -- Sections -----------------------------------------------------------
     def _ensure_community(self, slug: str) -> None:
@@ -242,6 +252,79 @@ class DynamoDBRepository(Repository):
                 }
             )
         return [link for link in self.list_links(slug) if link.section_id == section_id]
+
+    # -- Administradores e convites (RF-021) --------------------------------
+    def add_admin(self, slug: str, sub: str, email: str | None) -> CommunityAdmin:
+        self._ensure_community(slug)
+        admin = CommunityAdmin(sub=sub, email=email)
+        with self._table.batch_writer() as batch:
+            batch.put_item(Item={"PK": _pk(slug), "SK": f"ADMIN#{sub}", **admin.model_dump()})
+            batch.put_item(Item={"PK": _user_pk(sub), "SK": _pk(slug), "slug": slug})
+        return admin
+
+    def remove_admin(self, slug: str, sub: str) -> None:
+        self._ensure_community(slug)
+        resp = self._table.get_item(Key={"PK": _pk(slug), "SK": f"ADMIN#{sub}"})
+        if not resp.get("Item"):
+            raise NotFoundError(f"administrador '{sub}' não encontrado")
+        with self._table.batch_writer() as batch:
+            batch.delete_item(Key={"PK": _pk(slug), "SK": f"ADMIN#{sub}"})
+            batch.delete_item(Key={"PK": _user_pk(sub), "SK": _pk(slug)})
+
+    def list_admins(self, slug: str) -> list[CommunityAdmin]:
+        self._ensure_community(slug)
+        resp = self._table.query(
+            KeyConditionExpression="PK = :pk AND begins_with(SK, :s)",
+            ExpressionAttributeValues={":pk": _pk(slug), ":s": "ADMIN#"},
+        )
+        admins = [CommunityAdmin(**_strip_keys(i)) for i in resp.get("Items", [])]
+        return sorted(admins, key=lambda a: a.added_at)
+
+    def is_admin(self, slug: str, sub: str) -> bool:
+        resp = self._table.get_item(Key={"PK": _pk(slug), "SK": f"ADMIN#{sub}"})
+        return bool(resp.get("Item"))
+
+    def list_user_communities(self, sub: str) -> list[Community]:
+        resp = self._table.query(
+            KeyConditionExpression="PK = :pk AND begins_with(SK, :s)",
+            ExpressionAttributeValues={":pk": _user_pk(sub), ":s": "COMMUNITY#"},
+        )
+        communities: list[Community] = []
+        for i in resp.get("Items", []):
+            community = self.get_community(str(i["slug"]))
+            if community is not None:
+                communities.append(community)
+        return sorted(communities, key=lambda c: c.created_at)
+
+    def add_invite(self, slug: str, email: str, invited_by: str | None) -> AdminInvite:
+        self._ensure_community(slug)
+        invite = AdminInvite(email=email, invited_by=invited_by)
+        self._table.put_item(
+            Item={"PK": _pk(slug), "SK": f"INVITE#{invite.email}", **invite.model_dump()}
+        )
+        return invite
+
+    def list_invites(self, slug: str) -> list[AdminInvite]:
+        self._ensure_community(slug)
+        resp = self._table.query(
+            KeyConditionExpression="PK = :pk AND begins_with(SK, :s)",
+            ExpressionAttributeValues={":pk": _pk(slug), ":s": "INVITE#"},
+        )
+        invites = [AdminInvite(**_strip_keys(i)) for i in resp.get("Items", [])]
+        return sorted(invites, key=lambda i: i.invited_at)
+
+    def remove_invite(self, slug: str, email: str) -> None:
+        self._ensure_community(slug)
+        email = email.strip().lower()
+        resp = self._table.get_item(Key={"PK": _pk(slug), "SK": f"INVITE#{email}"})
+        if not resp.get("Item"):
+            raise NotFoundError(f"convite para '{email}' não encontrado")
+        self._table.delete_item(Key={"PK": _pk(slug), "SK": f"INVITE#{email}"})
+
+    def has_invite(self, slug: str, email: str) -> bool:
+        email = email.strip().lower()
+        resp = self._table.get_item(Key={"PK": _pk(slug), "SK": f"INVITE#{email}"})
+        return bool(resp.get("Item"))
 
 
 def _strip_keys(item: dict) -> dict:

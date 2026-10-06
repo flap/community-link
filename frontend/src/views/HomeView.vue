@@ -8,7 +8,7 @@ import { RouterLink } from 'vue-router'
       <span class="brand">community<span class="accent">.link</span></span>
       <nav>
         <RouterLink to="/">Início</RouterLink>
-        <RouterLink to="/admin">Administração</RouterLink>
+        <RouterLink to="/login">Entrar</RouterLink>
       </nav>
     </header>
 
