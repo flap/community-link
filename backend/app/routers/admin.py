@@ -16,6 +16,7 @@ from ..models import (
     Link,
     LinkCreate,
     LinkUpdate,
+    ReorderRequest,
     Section,
     SectionCreate,
     SectionUpdate,
@@ -105,6 +106,15 @@ def delete_section(slug: str, section_id: str) -> None:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
+@router.put("/communities/{slug}/sections/reorder", response_model=list[Section])
+def reorder_sections(slug: str, data: ReorderRequest) -> list[Section]:
+    """Reordena as seções conforme a lista de IDs (RF-018)."""
+    try:
+        return _repo().reorder_sections(slug, data.ordered_ids)
+    except NotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
 # -- Links ------------------------------------------------------------------
 @router.get("/communities/{slug}/links", response_model=list[Link])
 def list_links(slug: str) -> list[Link]:
@@ -136,3 +146,14 @@ def delete_link(slug: str, link_id: str) -> None:
         _repo().delete_link(slug, link_id)
     except NotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.put("/communities/{slug}/sections/{section_id}/links/reorder", response_model=list[Link])
+def reorder_links(slug: str, section_id: str, data: ReorderRequest) -> list[Link]:
+    """Reordena os links de uma seção conforme a lista de IDs (RF-018)."""
+    try:
+        return _repo().reorder_links(slug, section_id, data.ordered_ids)
+    except NotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ConflictError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc

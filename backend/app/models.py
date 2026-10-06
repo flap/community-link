@@ -132,6 +132,12 @@ class Community(CommunityBase):
     created_at: str = Field(default_factory=_now_iso)
 
 
+class ReorderRequest(BaseModel):
+    """Lista de IDs na nova ordem desejada (RF-018)."""
+
+    ordered_ids: list[str] = Field(min_length=1)
+
+
 class PublicLink(Link):
     """Link enriquecido para a página pública, com metadados de embed (RF-006)."""
 

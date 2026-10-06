@@ -81,6 +81,13 @@ class Repository(ABC):
     @abstractmethod
     def delete_link(self, slug: str, link_id: str) -> None: ...
 
+    # Reordenação (RF-018)
+    @abstractmethod
+    def reorder_sections(self, slug: str, ordered_ids: list[str]) -> list[Section]: ...
+
+    @abstractmethod
+    def reorder_links(self, slug: str, section_id: str, ordered_ids: list[str]) -> list[Link]: ...
+
 
 class InMemoryRepository(Repository):
     """Implementação em memória, thread-safe, para desenvolvimento e testes."""
@@ -202,6 +209,36 @@ class InMemoryRepository(Repository):
             if link_id not in self._links[slug]:
                 raise NotFoundError(f"link '{link_id}' não encontrado")
             self._links[slug].pop(link_id, None)
+
+    # -- Reordenação (RF-018) ----------------------------------------------
+    def reorder_sections(self, slug: str, ordered_ids: list[str]) -> list[Section]:
+        with self._lock:
+            self._ensure_community(slug)
+            existing = self._sections[slug]
+            unknown = [sid for sid in ordered_ids if sid not in existing]
+            if unknown:
+                raise NotFoundError(f"seção(ões) inexistente(s): {', '.join(unknown)}")
+            for position, sid in enumerate(ordered_ids):
+                existing[sid] = existing[sid].model_copy(update={"order": position})
+            return self.list_sections(slug)
+
+    def reorder_links(self, slug: str, section_id: str, ordered_ids: list[str]) -> list[Link]:
+        with self._lock:
+            self._ensure_community(slug)
+            if section_id not in self._sections[slug]:
+                raise NotFoundError(f"seção '{section_id}' não encontrada")
+            links = self._links[slug]
+            for lid in ordered_ids:
+                link = links.get(lid)
+                if link is None:
+                    raise NotFoundError(f"link '{lid}' não encontrado")
+                if link.section_id != section_id:
+                    raise ConflictError(
+                        f"link '{lid}' não pertence à seção '{section_id}'"
+                    )
+            for position, lid in enumerate(ordered_ids):
+                links[lid] = links[lid].model_copy(update={"order": position})
+            return [link for link in self.list_links(slug) if link.section_id == section_id]
 
 
 _repository: Repository | None = None

@@ -128,6 +128,44 @@ Desenvolver um **portal agregador de links SaaS multi-tenant** para comunidades,
 - **Prioridade:** Should
 - **Fase:** 1
 
+### RF-015: Edição de Dados da Comunidade
+- **Descrição:** permitir alterar os dados de uma comunidade já cadastrada: nome, descrição, tema e logo/avatar.
+- **Regra de negócio:** o **slug é imutável** após a criação (é a URL pública e a chave multi-tenant). A edição é feita de forma **inline** na área administrativa.
+- **Critério de aceite:**
+  - [ ] Editar nome/descrição/tema/logo persiste e reflete na página pública.
+  - [ ] O campo slug não é editável.
+  - [ ] Tema inválido é rejeitado.
+- **Prioridade:** Must
+- **Fase:** 1
+
+### RF-016: Edição de Seções
+- **Descrição:** permitir alterar o **título** de uma seção existente, inline.
+- **Regra de negócio:** a seção pertence a uma comunidade; o título é obrigatório.
+- **Critério de aceite:**
+  - [ ] Alterar o título da seção persiste e reflete na página pública.
+- **Prioridade:** Must
+- **Fase:** 1
+
+### RF-017: Edição de Links e Movimentação entre Seções
+- **Descrição:** permitir alterar os campos de um link (tipo, título, URL, emoji, foto de destaque, autor, embed) e **mover o link para outra seção** da mesma comunidade.
+- **Regra de negócio:** a nova seção deve existir e pertencer à mesma comunidade (RN-002). Edição inline.
+- **Critério de aceite:**
+  - [ ] Alterar campos do link persiste e reflete na página pública.
+  - [ ] Mover o link para outra seção o exibe na seção de destino.
+  - [ ] Mover para seção inexistente é rejeitado.
+- **Prioridade:** Must
+- **Fase:** 1
+
+### RF-018: Reordenação de Seções e Links
+- **Descrição:** permitir alterar a ordem de exibição de seções e de links dentro de uma seção, por **dois mecanismos**: botões **mover para cima/baixo (↑/↓)** e **arrastar e soltar (drag-and-drop)**.
+- **Regra de negócio:** a ordem é persistida no campo `order` de cada item; a página pública respeita essa ordem.
+- **Critério de aceite:**
+  - [ ] Reordenar via ↑/↓ atualiza a ordem e persiste.
+  - [ ] Reordenar via arrastar e soltar atualiza a ordem e persiste.
+  - [ ] A página pública exibe seções e links na nova ordem.
+- **Prioridade:** Should
+- **Fase:** 1
+
 ---
 
 ## Identidade Visual (Referência: awscommunityday.com.br)
@@ -357,4 +395,4 @@ erDiagram
 
 ---
 
-> Rastreabilidade: cada feature do `ideas.MD` foi mapeada em requisitos — cadastro de comunidade/usuário (RF-001, RF-002, RF-011), seções (RF-003), tipos de link (RF-004), emojis (RF-005), embeds (RF-006), foto de destaque (RF-007), fácil de atualizar (RF-008), destaque visual/temas (RF-009), página pública (RF-010), filtros (RF-012) e pesquisas (RF-013). A identidade visual segue como referência o site awscommunityday.com.br (RF-014).
+> Rastreabilidade: cada feature do `ideas.MD` foi mapeada em requisitos — cadastro de comunidade/usuário (RF-001, RF-002, RF-011), seções (RF-003), tipos de link (RF-004), emojis (RF-005), embeds (RF-006), foto de destaque (RF-007), fácil de atualizar (RF-008), destaque visual/temas (RF-009), página pública (RF-010), filtros (RF-012) e pesquisas (RF-013). A identidade visual segue como referência o site awscommunityday.com.br (RF-014). A edição e reordenação de conteúdo cobrem comunidade (RF-015), seções (RF-016), links e movimentação entre seções (RF-017) e reordenação por ↑/↓ e arrastar-e-soltar (RF-018).

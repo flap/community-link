@@ -47,12 +47,24 @@ export const listSections = (slug) =>
   request(`/admin/communities/${slug}/sections`, { auth: true })
 export const createSection = (slug, payload) =>
   request(`/admin/communities/${slug}/sections`, { method: 'POST', body: payload, auth: true })
+export const updateSection = (slug, id, payload) =>
+  request(`/admin/communities/${slug}/sections/${id}`, { method: 'PATCH', body: payload, auth: true })
 export const deleteSection = (slug, id) =>
   request(`/admin/communities/${slug}/sections/${id}`, { method: 'DELETE', auth: true })
+export const reorderSections = (slug, orderedIds) =>
+  request(`/admin/communities/${slug}/sections/reorder`, {
+    method: 'PUT', body: { ordered_ids: orderedIds }, auth: true,
+  })
 
 export const listLinks = (slug) =>
   request(`/admin/communities/${slug}/links`, { auth: true })
 export const createLink = (slug, payload) =>
   request(`/admin/communities/${slug}/links`, { method: 'POST', body: payload, auth: true })
+export const updateLink = (slug, id, payload) =>
+  request(`/admin/communities/${slug}/links/${id}`, { method: 'PATCH', body: payload, auth: true })
 export const deleteLink = (slug, id) =>
   request(`/admin/communities/${slug}/links/${id}`, { method: 'DELETE', auth: true })
+export const reorderLinks = (slug, sectionId, orderedIds) =>
+  request(`/admin/communities/${slug}/sections/${sectionId}/links/reorder`, {
+    method: 'PUT', body: { ordered_ids: orderedIds }, auth: true,
+  })

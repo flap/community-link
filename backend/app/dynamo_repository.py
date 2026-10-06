@@ -206,6 +206,43 @@ class DynamoDBRepository(Repository):
             raise NotFoundError(f"link '{link_id}' não encontrado")
         self._table.delete_item(Key={"PK": _pk(slug), "SK": sk})
 
+    # -- Reordenação (RF-018) ----------------------------------------------
+    def reorder_sections(self, slug: str, ordered_ids: list[str]) -> list[Section]:
+        self._ensure_community(slug)
+        current = {s.id: s for s in self.list_sections(slug)}
+        unknown = [sid for sid in ordered_ids if sid not in current]
+        if unknown:
+            raise NotFoundError(f"seção(ões) inexistente(s): {', '.join(unknown)}")
+        for position, sid in enumerate(ordered_ids):
+            updated = current[sid].model_copy(update={"order": position})
+            self._table.put_item(
+                Item={"PK": _pk(slug), "SK": f"SECTION#{sid}", **updated.model_dump()}
+            )
+        return self.list_sections(slug)
+
+    def reorder_links(self, slug: str, section_id: str, ordered_ids: list[str]) -> list[Link]:
+        self._ensure_community(slug)
+        sec = self._table.get_item(Key={"PK": _pk(slug), "SK": f"SECTION#{section_id}"})
+        if not sec.get("Item"):
+            raise NotFoundError(f"seção '{section_id}' não encontrada")
+        current = {link.id: link for link in self.list_links(slug)}
+        for lid in ordered_ids:
+            link = current.get(lid)
+            if link is None:
+                raise NotFoundError(f"link '{lid}' não encontrado")
+            if link.section_id != section_id:
+                raise ConflictError(f"link '{lid}' não pertence à seção '{section_id}'")
+        for position, lid in enumerate(ordered_ids):
+            updated = current[lid].model_copy(update={"order": position})
+            self._table.put_item(
+                Item={
+                    "PK": _pk(slug),
+                    "SK": f"LINK#{section_id}#{lid}",
+                    **updated.model_dump(),
+                }
+            )
+        return [link for link in self.list_links(slug) if link.section_id == section_id]
+
 
 def _strip_keys(item: dict) -> dict:
     """Remove atributos de chave (PK/SK) antes de hidratar o modelo."""

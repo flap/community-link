@@ -92,3 +92,113 @@ def test_reserved_slug_rejected():
         json={"name": "X", "slug": "api"},
     )
     assert r.status_code == 422
+
+
+def test_edit_community_section_link_and_reorder():
+    slug = "edit-flow"
+    client.post(
+        "/api/admin/communities",
+        headers=AUTH,
+        json={"name": "Edit Flow", "slug": slug, "theme": "aws"},
+    )
+
+    # edita comunidade (RF-015) — nome/descrição/tema
+    r = client.patch(
+        f"/api/admin/communities/{slug}",
+        headers=AUTH,
+        json={"name": "Edit Flow 2", "description": "nova desc", "theme": "light"},
+    )
+    assert r.status_code == 200
+    assert r.json()["name"] == "Edit Flow 2"
+    assert r.json()["theme"] == "light"
+
+    # tema inválido rejeitado
+    assert client.patch(
+        f"/api/admin/communities/{slug}", headers=AUTH, json={"theme": "nope"}
+    ).status_code == 400
+
+    # cria duas seções
+    s1 = client.post(
+        f"/api/admin/communities/{slug}/sections", headers=AUTH,
+        json={"title": "A", "order": 0},
+    ).json()
+    s2 = client.post(
+        f"/api/admin/communities/{slug}/sections", headers=AUTH,
+        json={"title": "B", "order": 1},
+    ).json()
+
+    # edita título da seção (RF-016)
+    r = client.patch(
+        f"/api/admin/communities/{slug}/sections/{s1['id']}",
+        headers=AUTH, json={"title": "A editada"},
+    )
+    assert r.status_code == 200 and r.json()["title"] == "A editada"
+
+    # reordena seções: B antes de A (RF-018)
+    r = client.put(
+        f"/api/admin/communities/{slug}/sections/reorder",
+        headers=AUTH, json={"ordered_ids": [s2["id"], s1["id"]]},
+    )
+    assert r.status_code == 200
+    ordered = r.json()
+    assert ordered[0]["id"] == s2["id"] and ordered[0]["order"] == 0
+
+    # cria dois links na seção A
+    l1 = client.post(
+        f"/api/admin/communities/{slug}/links", headers=AUTH,
+        json={"section_id": s1["id"], "type": "site", "title": "L1", "url": "https://a.com"},
+    ).json()
+    l2 = client.post(
+        f"/api/admin/communities/{slug}/links", headers=AUTH,
+        json={"section_id": s1["id"], "type": "site", "title": "L2", "url": "https://b.com"},
+    ).json()
+
+    # edita link (RF-017)
+    r = client.patch(
+        f"/api/admin/communities/{slug}/links/{l1['id']}",
+        headers=AUTH, json={"title": "L1 editado", "emoji": "🔗"},
+    )
+    assert r.status_code == 200 and r.json()["title"] == "L1 editado"
+
+    # reordena links: L2 antes de L1 (RF-018)
+    r = client.put(
+        f"/api/admin/communities/{slug}/sections/{s1['id']}/links/reorder",
+        headers=AUTH, json={"ordered_ids": [l2["id"], l1["id"]]},
+    )
+    assert r.status_code == 200 and r.json()[0]["id"] == l2["id"]
+
+    # move link L2 para a seção B (RF-017)
+    r = client.patch(
+        f"/api/admin/communities/{slug}/links/{l2['id']}",
+        headers=AUTH, json={"section_id": s2["id"]},
+    )
+    assert r.status_code == 200 and r.json()["section_id"] == s2["id"]
+
+    # a página pública reflete tudo
+    pub = client.get(f"/api/communities/{slug}").json()
+    sec_titles = [s["title"] for s in pub["sections"]]
+    assert sec_titles == ["B", "A editada"]  # ordem aplicada
+
+
+def test_reorder_rejects_foreign_link():
+    slug = "reorder-foreign"
+    client.post(
+        "/api/admin/communities", headers=AUTH,
+        json={"name": "RF", "slug": slug},
+    )
+    s1 = client.post(
+        f"/api/admin/communities/{slug}/sections", headers=AUTH, json={"title": "S1"}
+    ).json()
+    s2 = client.post(
+        f"/api/admin/communities/{slug}/sections", headers=AUTH, json={"title": "S2"}
+    ).json()
+    link = client.post(
+        f"/api/admin/communities/{slug}/links", headers=AUTH,
+        json={"section_id": s1["id"], "type": "site", "title": "X", "url": "https://x.com"},
+    ).json()
+    # tentar reordenar na seção errada -> 409
+    r = client.put(
+        f"/api/admin/communities/{slug}/sections/{s2['id']}/links/reorder",
+        headers=AUTH, json={"ordered_ids": [link["id"]]},
+    )
+    assert r.status_code == 409
