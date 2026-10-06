@@ -39,13 +39,14 @@ const selectedCommunity = computed(() => communities.value.find((c) => c.slug ==
 const uploading = ref(false)
 
 async function handleUpload(event, target) {
+  // `target` é o objeto reativo (newLink/linkDraft) já desembrulhado pelo template.
   const file = event.target.files && event.target.files[0]
   if (!file) return
   error.value = ''
   uploading.value = true
   try {
     const url = await uploadImage(file)
-    target.value.image_url = url
+    target.image_url = url
   } catch (e) { error.value = e.message }
   finally { uploading.value = false; event.target.value = '' }
 }
