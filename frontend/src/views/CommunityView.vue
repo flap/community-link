@@ -79,10 +79,27 @@ watch(() => props.slug, load)
               ></iframe>
             </div>
 
+            <!-- Link com foto de destaque (RF-007): imagem grande acima do link -->
+            <a
+              v-else-if="link.image_url"
+              class="feature-card"
+              :href="link.url"
+              target="_blank"
+              rel="noopener"
+            >
+              <img :src="link.image_url" class="feature-image" :alt="link.title" />
+              <span class="feature-body">
+                <span class="link-title">
+                  <span v-if="link.emoji" class="link-emoji">{{ link.emoji }}</span>
+                  {{ link.title }}
+                </span>
+                <span class="link-type">{{ linkTypeLabel[link.type] || link.type }}</span>
+              </span>
+            </a>
+
             <!-- Link comum / fallback -->
             <a v-else class="link-card" :href="link.url" target="_blank" rel="noopener">
               <span v-if="link.emoji" class="link-emoji">{{ link.emoji }}</span>
-              <img v-if="link.image_url" :src="link.image_url" class="link-thumb" :alt="link.title" />
               <span>
                 <span class="link-title">{{ link.title }}</span><br />
                 <span class="link-type">{{ linkTypeLabel[link.type] || link.type }}</span>
