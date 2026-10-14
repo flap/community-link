@@ -37,12 +37,3 @@ app.include_router(admin.router, prefix="/api")
 @app.get("/api/health", tags=["health"])
 def health() -> dict[str, str]:
     return {"status": "ok", "app": settings.app_name, "version": __version__}
-
-
-# Handler para AWS Lambda (API Gateway) — usado no deploy serverless.
-try:  # pragma: no cover - só relevante no ambiente Lambda
-    from mangum import Mangum
-
-    handler = Mangum(app)
-except Exception:  # noqa: BLE001
-    handler = None

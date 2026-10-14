@@ -65,7 +65,7 @@ class LocalStorage(Storage):
         return self._dir / name
 
 
-class S3Storage(Storage):  # pragma: no cover - depende da AWS
+class S3Storage(Storage):
     def __init__(self, settings: Settings) -> None:
         import boto3
 
@@ -79,7 +79,11 @@ class S3Storage(Storage):  # pragma: no cover - depende da AWS
         self._client.put_object(
             Bucket=self._bucket, Key=key, Body=content, ContentType=content_type
         )
-        return f"https://{self._bucket}.s3.{self._settings.aws_region}.amazonaws.com/{key}"
+        # Mídia é servida de forma privada pela mesma distribuição CloudFront
+        # sob o prefixo CL_MEDIA_BASE_URL (ex.: /media); a URL retornada é
+        # relativa à origem (DECISION 1). O objeto permanece em links/<uuid>.<ext>.
+        base = self._settings.media_base_url.rstrip("/")
+        return f"{base}/{key}"
 
 
 _storage: Storage | None = None

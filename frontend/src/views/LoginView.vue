@@ -6,7 +6,7 @@ import { setAdminToken } from '../api'
 
 const router = useRouter()
 
-const mode = ref('login') // login | signup | reset
+const mode = ref('login') // login | reset
 const email = ref('')
 const password = ref('')
 const staticToken = ref('')
@@ -39,13 +39,6 @@ function submitEmail() {
       const { error: e } = await supabase.auth.signInWithPassword({ email: email.value, password: password.value })
       if (e) throw e
       router.push('/admin')
-    } else if (mode.value === 'signup') {
-      const { data, error: e } = await supabase.auth.signUp({
-        email: email.value, password: password.value, options: { emailRedirectTo: redirectTo },
-      })
-      if (e) throw e
-      if (data.session) router.push('/admin')
-      else info.value = 'Cadastro realizado! Verifique seu e-mail para confirmar a conta.'
     } else {
       const { error: e } = await supabase.auth.resetPasswordForEmail(email.value, { redirectTo })
       if (e) throw e
@@ -82,7 +75,7 @@ onMounted(async () => {
       <div class="card login-card">
         <span class="pill"><span class="dot"></span> Área administrativa</span>
         <h1 class="login-title">
-          {{ mode === 'signup' ? 'Criar conta' : mode === 'reset' ? 'Recuperar senha' : 'Entrar' }}
+          {{ mode === 'reset' ? 'Recuperar senha' : 'Entrar' }}
         </h1>
         <p class="muted">Gerencie as páginas das suas comunidades.</p>
 
@@ -109,19 +102,18 @@ onMounted(async () => {
               <label for="password">Senha</label>
               <input
                 id="password" v-model="password" type="password" required minlength="6"
-                :autocomplete="mode === 'signup' ? 'new-password' : 'current-password'"
+                autocomplete="current-password"
                 placeholder="mínimo 6 caracteres"
               />
             </template>
 
             <button class="btn login-submit" type="submit" :disabled="busy">
-              {{ busy ? 'Aguarde…' : mode === 'signup' ? 'Criar conta' : mode === 'reset' ? 'Enviar link' : 'Entrar' }}
+              {{ busy ? 'Aguarde…' : mode === 'reset' ? 'Enviar link' : 'Entrar' }}
             </button>
           </form>
 
           <div class="login-links">
             <template v-if="mode === 'login'">
-              <a href="#" @click.prevent="mode = 'signup'">Criar conta</a>
               <a href="#" @click.prevent="mode = 'reset'">Esqueci minha senha</a>
             </template>
             <a v-else href="#" @click.prevent="mode = 'login'">Já tenho conta — entrar</a>

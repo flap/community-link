@@ -1,0 +1,10 @@
+# .samignore (worktree root) — keep dev/secret env files, bytecode, and tests
+# out of the Lambda bundle (CodeUri: backend/). Env vars outrank pydantic's
+# .env file, so a bundled .env would never change runtime config — but it is a
+# security-hygiene problem, so it is never packaged.
+backend/.env
+backend/.env.*
+!backend/.env.example
+**/__pycache__/
+**/*.pyc
+backend/tests/

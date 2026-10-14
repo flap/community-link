@@ -1,0 +1,13 @@
+version = 0.1
+
+# Beta deploy profile. Contains NO secrets. The deploy script supplies
+# ConfigVersion and CorsOrigins per pass on the command line (those override
+# the base parameter_overrides below).
+[beta.deploy.parameters]
+stack_name = "community-link-beta"
+region = "us-east-1"
+capabilities = "CAPABILITY_IAM"
+confirm_changeset = false
+resolve_s3 = true
+no_fail_on_empty_changeset = true
+parameter_overrides = "Stage=beta ConfigSsmPath=/community-link/beta/backend MediaBaseUrl=/media"
