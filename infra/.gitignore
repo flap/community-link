@@ -1,0 +1,22 @@
+# Terraform working directories e artefatos
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+
+# Variáveis locais com overrides (NUNCA commitar segredos)
+*.auto.tfvars
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Artefatos de build do backend
+artifacts/
+*.zip
+
+# Planos
+*.tfplan
+
+# .terraform.lock.hcl É commitado intencionalmente (não ignorar).

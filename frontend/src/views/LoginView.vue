@@ -6,7 +6,7 @@ import { setAdminToken } from '../api'
 
 const router = useRouter()
 
-const mode = ref('login') // login | reset
+const mode = ref('login') // login | reset  (cadastro é feito manualmente no Supabase)
 const email = ref('')
 const password = ref('')
 const staticToken = ref('')
@@ -20,7 +20,6 @@ function friendly(message) {
   const m = (message || '').toLowerCase()
   if (m.includes('invalid login credentials')) return 'E-mail ou senha inválidos.'
   if (m.includes('email not confirmed')) return 'Confirme seu e-mail antes de entrar (verifique sua caixa de entrada).'
-  if (m.includes('user already registered')) return 'Este e-mail já está cadastrado. Faça login.'
   if (m.includes('password should be at least')) return 'A senha precisa ter pelo menos 6 caracteres.'
   if (m.includes('rate limit')) return 'Muitas tentativas. Aguarde um instante e tente novamente.'
   return message || 'Não foi possível autenticar.'
@@ -103,7 +102,7 @@ onMounted(async () => {
               <input
                 id="password" v-model="password" type="password" required minlength="6"
                 autocomplete="current-password"
-                placeholder="mínimo 6 caracteres"
+                placeholder="sua senha"
               />
             </template>
 
@@ -116,7 +115,7 @@ onMounted(async () => {
             <template v-if="mode === 'login'">
               <a href="#" @click.prevent="mode = 'reset'">Esqueci minha senha</a>
             </template>
-            <a v-else href="#" @click.prevent="mode = 'login'">Já tenho conta — entrar</a>
+            <a v-else href="#" @click.prevent="mode = 'login'">Voltar para o login</a>
           </div>
         </template>
 

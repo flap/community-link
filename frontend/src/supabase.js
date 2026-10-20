@@ -15,7 +15,10 @@ export const supabase = url && anonKey
 export const authEnabled = supabase !== null
 
 // Provedores sociais exibidos na tela de login (precisam estar habilitados no projeto Supabase).
-export const socialProviders = (import.meta.env.VITE_SUPABASE_PROVIDERS || 'google,github')
+// - variável ausente  -> usa o default (google,github)
+// - variável vazia     -> nenhum provedor social (apenas e-mail/senha)
+const providersEnv = import.meta.env.VITE_SUPABASE_PROVIDERS
+export const socialProviders = (providersEnv === undefined ? 'google,github' : providersEnv)
   .split(',')
   .map((p) => p.trim())
   .filter(Boolean)
