@@ -91,7 +91,9 @@ class Section(SectionBase):
 # ---------------------------------------------------------------------------
 # Community
 # ---------------------------------------------------------------------------
-SLUG_PATTERN = r"^[a-z0-9]+(?:-[a-z0-9]+)*$"
+# Contrato de slug compartilhado com a geração da sugestão (app.slugs), para
+# que validação e geração nunca divirjam.
+from .slugs import RESERVED_SLUGS, SLUG_PATTERN  # noqa: E402
 
 
 class CommunityBase(BaseModel):
@@ -111,14 +113,19 @@ class CommunityBase(BaseModel):
             raise ValueError(
                 "slug deve conter apenas letras minúsculas, números e hífens"
             )
-        reserved = {"api", "admin", "static", "assets", "www"}
-        if v in reserved:
+        if v in RESERVED_SLUGS:
             raise ValueError(f"slug '{v}' é reservado")
         return v
 
 
 class CommunityCreate(CommunityBase):
     pass
+
+
+class SlugSuggestion(BaseModel):
+    """Sugestão de slug disponível derivada de um nome (RF-001)."""
+
+    slug: str
 
 
 class CommunityUpdate(BaseModel):

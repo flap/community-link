@@ -26,9 +26,9 @@ Desenvolver um **portal agregador de links SaaS multi-tenant** para comunidades,
 ## 2. Requisitos Funcionais
 
 ### RF-001: Cadastro de Comunidade
-- **Descrição:** permitir criar uma comunidade com nome, slug (URL única), descrição, logo/avatar e tema visual.
-- **Regra de negócio:** o slug deve ser único em toda a plataforma (multi-tenant) e conter apenas caracteres URL-safe.
-- **Critério de aceite:** dado um slug inédito e válido, ao salvar, a comunidade é criada e acessível em `/{slug}`; slug duplicado ou inválido retorna erro claro.
+- **Descrição:** permitir criar uma comunidade com nome, slug (URL única), descrição, logo/avatar e tema visual. Ao informar o nome, o sistema sugere automaticamente um slug normalizado e disponível; a sugestão preenche o campo apenas enquanto o administrador não o editar manualmente.
+- **Regra de negócio:** o slug deve ser único em toda a plataforma (multi-tenant) e conter apenas caracteres URL-safe. A sugestão de slug deriva do nome por normalização determinística (minúsculas, remoção de acentos, caracteres URL-safe) — idêntica no frontend e no backend — e, no backend, garante disponibilidade sufixando `-2`, `-3`, … em caso de colisão; a edição manual do slug nunca é sobrescrita.
+- **Critério de aceite:** dado um slug inédito e válido, ao salvar, a comunidade é criada e acessível em `/{slug}`; slug duplicado ou inválido retorna erro claro. Dado um nome `AWS Community BR`, o campo slug é pré-preenchido com `aws-community-br`; se esse slug já existir, a sugestão retornada pelo backend é `aws-community-br-2`; ao editar o slug manualmente, novas digitações no nome não o alteram.
 - **Prioridade:** Must
 - **Fase:** 1
 

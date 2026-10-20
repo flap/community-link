@@ -28,8 +28,10 @@ from ..models import (
     Section,
     SectionCreate,
     SectionUpdate,
+    SlugSuggestion,
 )
 from ..repository import ConflictError, NotFoundError, get_repository
+from ..slugs import resolve_available_slug, slugify
 from ..storage import UploadError, get_storage
 from ..themes import theme_exists
 
@@ -88,6 +90,22 @@ def create_community(
     # quem cria vira administrador (RF-021)
     repo.add_admin(community.slug, user.sub, user.email)
     return community
+
+
+@router.get("/communities/slug-suggestion", response_model=SlugSuggestion)
+def suggest_slug(
+    name: str, _: CurrentUser = Depends(get_current_user)
+) -> SlugSuggestion:
+    """Sugere um slug normalizado e disponível a partir do nome (RF-001).
+
+    Idempotente e read-only. Declarada ANTES de ``/communities/{slug}`` para não
+    ser capturada como slug dinâmico. Retorna string vazia quando o nome não
+    produz nenhum caractere URL-safe (o frontend evita chamar nesse caso).
+    """
+    repo = _repo()
+    base = slugify(name)
+    slug = resolve_available_slug(base, lambda s: repo.get_community(s) is not None)
+    return SlugSuggestion(slug=slug)
 
 
 @router.get("/communities/{slug}", response_model=Community)

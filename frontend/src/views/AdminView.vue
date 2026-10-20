@@ -6,8 +6,9 @@ import {
   deleteCommunity, deleteLink, deleteSection,
   inviteAdmin, listAdmins, listCommunities, listLinks, listSections,
   listThemes, me, removeAdmin, removeInvite, reorderLinks, reorderSections,
-  setAdminToken, updateCommunity, updateLink, updateSection, uploadImage,
+  setAdminToken, suggestSlug, updateCommunity, updateLink, updateSection, uploadImage,
 } from '../api'
+import { slugify } from '../slug'
 import { authEnabled, signOut } from '../supabase'
 
 const router = useRouter()
@@ -30,6 +31,10 @@ const admins = ref({ admins: [], invites: [] })
 const inviteEmail = ref('')
 
 const newCommunity = ref({ name: '', slug: '', description: '', theme: 'aws' })
+// Sugestão de slug (RF-001): o nome preenche o slug automaticamente enquanto o
+// administrador não o editar manualmente; uma edição manual nunca é sobrescrita.
+const slugTouched = ref(false)
+let slugDebounceTimer = null
 const newSection = ref({ title: '' })
 const newLink = ref({ section_id: '', type: 'site', title: '', url: '', emoji: '', image_url: '', embed: false })
 
@@ -104,8 +109,33 @@ async function addCommunity() {
   try {
     await createCommunity({ ...newCommunity.value })
     newCommunity.value = { name: '', slug: '', description: '', theme: 'aws' }
+    slugTouched.value = false
     await loadCommunities()
   } catch (e) { error.value = e.message }
+}
+
+// -- Sugestão de slug (RF-001) ---------------------------------------------
+// Deriva o slug localmente para feedback imediato e, com debounce, busca no
+// backend a versão com disponibilidade garantida. Só preenche enquanto o
+// administrador não editou o slug manualmente.
+function onNameInput() {
+  if (slugTouched.value) return
+  const name = newCommunity.value.name
+  newCommunity.value.slug = slugify(name)
+
+  if (slugDebounceTimer) clearTimeout(slugDebounceTimer)
+  if (!name.trim()) return
+  slugDebounceTimer = setTimeout(async () => {
+    try {
+      const resp = await suggestSlug(name)
+      // evita corrida: só aplica se o nome não mudou e o slug não foi editado
+      if (!slugTouched.value && newCommunity.value.name === name && resp && resp.slug) {
+        newCommunity.value.slug = resp.slug
+      }
+    } catch {
+      // falha de rede/401: mantém o slug derivado localmente (silencioso)
+    }
+  }, 300)
 }
 
 async function removeCommunity(slug) {
@@ -281,8 +311,8 @@ onMounted(loadCommunities)
         <div class="card">
           <h3 style="margin-top:0">Nova comunidade</h3>
           <div class="grid">
-            <div><label>Nome</label><input v-model="newCommunity.name" placeholder="AWS Community Brasil" /></div>
-            <div><label>Slug (URL)</label><input v-model="newCommunity.slug" placeholder="aws-community-br" /></div>
+            <div><label>Nome</label><input v-model="newCommunity.name" @input="onNameInput" placeholder="AWS Community Brasil" /></div>
+            <div><label>Slug (URL)</label><input v-model="newCommunity.slug" @input="slugTouched = true" placeholder="aws-community-br" /></div>
             <div><label>Descrição</label><input v-model="newCommunity.description" placeholder="Comunidade de builders AWS" /></div>
             <div>
               <label>Tema</label>

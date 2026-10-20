@@ -4,6 +4,7 @@ import os
 import tempfile
 
 os.environ.setdefault("CL_USE_IN_MEMORY_STORE", "true")
+os.environ.setdefault("CL_AUTH_MODE", "static")
 os.environ.setdefault("CL_ADMIN_TOKEN", "test-token")
 os.environ.setdefault("CL_MEDIA_DIR", tempfile.mkdtemp(prefix="cl-media-"))
 os.environ.setdefault("CL_MAX_UPLOAD_BYTES", str(1024 * 1024))  # 1MB nos testes

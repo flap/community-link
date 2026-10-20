@@ -47,6 +47,8 @@ export const getPublicCommunity = (slug) => request(`/communities/${slug}`)
 // -- Admin -----------------------------------------------------------------
 export const me = () => request('/admin/me', { auth: true })
 export const listCommunities = () => request('/admin/communities', { auth: true })
+export const suggestSlug = (name) =>
+  request(`/admin/communities/slug-suggestion?name=${encodeURIComponent(name)}`, { auth: true })
 
 // Administradores e convites (RF-021)
 export const listAdmins = (slug) => request(`/admin/communities/${slug}/admins`, { auth: true })
