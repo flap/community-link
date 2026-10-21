@@ -29,3 +29,6 @@ frontend/.env
 
 # AWS SAM build
 .aws-sam/
+
+# Workflow process artifacts
+.agents/
