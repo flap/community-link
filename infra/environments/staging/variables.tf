@@ -27,9 +27,9 @@ variable "media_bucket_name" {
 }
 
 variable "config_ssm_path" {
-  description = "Prefixo SSM lido pela Lambda no cold start."
+  description = "Prefixo SSM lido pela Lambda no cold start (ex.: /community-link/staging/backend)."
   type        = string
-  default     = "/community-link/beta/backend"
+  default     = "/community-link/staging/backend"
 }
 
 variable "lambda_package_path" {

@@ -187,3 +187,37 @@ infra/
 `storage` ↔ `edge` teria ciclo (edge precisa do domínio do bucket; policy do bucket
 precisa do ARN da distribuição). Resolvido movendo a **policy OAC para a composição**
 (`environments/*`), mantendo os módulos desacoplados.
+
+### Empacotamento do backend para deploy real (staging)
+
+Para tornar o esqueleto **deployável** (não só `validate`), a Lambda precisa de um `.zip`
+com as dependências compiladas para o runtime Lambda — e não para o host. O agente usa
+`infra/scripts/build-backend-zip.sh`, que roda:
+
+```
+pip install --target infra/artifacts/build \
+  --platform manylinux2014_x86_64 --implementation cp \
+  --python-version 3.12 --only-binary=:all: -r backend/requirements.txt
+```
+
+e então copia `backend/app/` para a raiz do build (handler `app/lambda_handler.py` no topo),
+remove `.env`/`media/`/`tests/`/`__pycache__` e zipa em `infra/artifacts/backend.zip`.
+O Terraform referencia o zip via `lambda_package_path` + `filebase64sha256` (o hash força
+replace da Lambda quando o pacote muda). **Rodar o script ANTES de `plan`/`apply`.**
+
+Sequência de deploy do ambiente `staging` (parar no plan para revisão):
+
+```
+bash infra/scripts/build-backend-zip.sh
+terraform -chdir=infra/environments/staging init      # backend S3 real + lock DynamoDB
+terraform -chdir=infra fmt -recursive
+terraform -chdir=infra/environments/staging validate
+terraform -chdir=infra/environments/staging plan -out=staging.tfplan
+# revisar o plano; só então:
+# terraform -chdir=infra/environments/staging apply "staging.tfplan"
+```
+
+Config efetiva de staging: prefixo `community-link-staging`, `config_ssm_path =
+/community-link/staging/backend` (Lambda lê o resto da config do SSM no cold start —
+nenhum segredo em `.tf`/`.tfvars`/state), buckets S3 com sufixo de account id para
+unicidade global determinística. Plano de referência: **26 to add, 0 to change, 0 to destroy**.

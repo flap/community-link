@@ -100,6 +100,8 @@ module "compute" {
   lambda_package_path = var.lambda_package_path
   runtime             = "python3.12"
   handler             = "app.lambda_handler.handler"
+  memory_size         = 512
+  timeout             = 20
   config_ssm_path     = var.config_ssm_path
   ssm_parameter_arns  = local.ssm_parameter_arns
   dynamodb_table_arn  = module.data.table_arn
