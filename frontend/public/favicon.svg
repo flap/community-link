@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Community Link">
+  <rect width="64" height="64" rx="14" fill="#0f1729"/>
+  <g fill="none" stroke="#ff8800" stroke-width="5.5" stroke-linecap="round">
+    <!-- elo esquerdo -->
+    <path d="M28 22 H23 a10 10 0 0 0 0 20 H28"/>
+    <!-- elo direito -->
+    <path d="M36 22 H41 a10 10 0 0 1 0 20 H36"/>
+    <!-- barra central conectando os elos -->
+    <path d="M24 32 H40"/>
+  </g>
+</svg>
