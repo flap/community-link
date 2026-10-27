@@ -324,11 +324,11 @@ O design segue a linguagem visual do **AWS Community Day Brasil** (`awscommunity
 
 ### Deploy e Domínio
 
-- **Domínio de produção:** `awscommunity.com.br`
-- Cada comunidade é acessível por slug no path: `https://awscommunity.com.br/{slug}`.
+- **Domínio de produção:** `link.awscommunity.com.br`
+- Cada comunidade é acessível por slug no path: `https://link.awscommunity.com.br/{slug}`.
 - **CloudFront** serve o frontend Vue (SPA) e faz cache; **API Gateway + Lambda** expõem a API sob o mesmo domínio (ex.: `/api/*` roteado para a API).
-- **Certificado TLS** via AWS Certificate Manager (ACM) para o domínio `awscommunity.com.br` (e `www`), emitido em `us-east-1` para uso com CloudFront.
-- **DNS:** registros gerenciados no provedor do domínio (ex.: Route 53 ou zona externa) apontando para a distribuição CloudFront.
+- **Certificado TLS** via AWS Certificate Manager (ACM) para o domínio `link.awscommunity.com.br`, emitido em `us-east-1` para uso com CloudFront.
+- **DNS:** registros ALIAS (A/AAAA) na hosted zone `awscommunity.com.br` (Route 53) apontando o subdomínio `link` para a distribuição CloudFront.
 
 ---
 

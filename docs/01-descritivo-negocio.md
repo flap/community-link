@@ -25,7 +25,7 @@ Permitir que qualquer comunidade crie e mantenha, com baixo esforço, uma págin
 
 ### Escopo Macro da Solução
 
-- Plataforma **multi-tenant**: cada comunidade tem sua própria página pública identificada por um *slug* (ex.: `awscommunity.com.br/minha-comunidade`).
+- Plataforma **multi-tenant**: cada comunidade tem sua própria página pública identificada por um *slug* (ex.: `link.awscommunity.com.br/minha-comunidade`).
 - Área administrativa para criar/editar comunidades, seções e links.
 - Renderização pública otimizada e responsiva, com temas customizáveis dentro de padrões oferecidos.
 - **Fase 1:** cadastro de comunidade, seções, tipos ricos de link, emojis, embeds, foto de destaque, edição fácil.

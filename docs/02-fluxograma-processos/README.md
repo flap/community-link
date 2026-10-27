@@ -80,7 +80,7 @@ O visitante acessa a URL da comunidade (slug), o conteúdo é servido via CloudF
 
 | # | Etapa | Responsável | Sistema | Tempo Estimado | Observações |
 |---|-------|-------------|---------|----------------|-------------|
-| 1 | Acessa awscommunity.com.br/slug | Visitante | Navegador | — | URL amigável |
+| 1 | Acessa link.awscommunity.com.br/slug | Visitante | Navegador | — | URL amigável |
 | 2 | CDN entrega conteúdo | Sistema | CloudFront | <200ms | Cache e baixa latência |
 | 3 | Roteia requisição | Sistema | API Gateway | <50ms | — |
 | 4 | Processa/consulta dados | Sistema | Lambda + DynamoDB | <100ms | — |

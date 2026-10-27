@@ -1,7 +1,7 @@
 """Community Link — aplicação FastAPI (MVP Fase 1).
 
 Expõe rotas públicas (renderização da página) e administrativas (edição),
-servidas sob o domínio ``awscommunity.com.br`` via CloudFront + API Gateway.
+servidas sob o domínio ``link.awscommunity.com.br`` via CloudFront + API Gateway.
 """
 
 from __future__ import annotations

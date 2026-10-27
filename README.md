@@ -1,6 +1,6 @@
 # Community Link
 
-Portal agregador de links para comunidades — **SaaS multi-tenant** com foco em visual bonito e fácil manutenção. Cada comunidade tem uma página pública em `awscommunity.com.br/{slug}`, organizada em seções, com tipos de link ricos (vídeo, site, calendário, pessoas, LinkedIn, Instagram, TikTok, AWS Builder Center, Meetup), emojis, embeds e fotos de destaque.
+Portal agregador de links para comunidades — **SaaS multi-tenant** com foco em visual bonito e fácil manutenção. Cada comunidade tem uma página pública em `link.awscommunity.com.br/{slug}`, organizada em seções, com tipos de link ricos (vídeo, site, calendário, pessoas, LinkedIn, Instagram, TikTok, AWS Builder Center, Meetup), emojis, embeds e fotos de destaque.
 
 > Estado atual: **Fase 1 (MVP) concluída; Fase 2a (autenticação) implementada.** Em produção a autenticação dos administradores usa **Supabase Auth** (e-mail+senha e login social) com tela própria; em desenvolvimento há um modo `static` com credencial fixa.
 
@@ -10,7 +10,7 @@ Portal agregador de links para comunidades — **SaaS multi-tenant** com foco em
 - **Backend:** Python + FastAPI
 - **Persistência:** Amazon DynamoDB (single-table) — repositório em memória para dev/testes
 - **Autenticação (Fase 2a):** Supabase Auth — e-mail+senha e provedores sociais (Google, GitHub…), fluxo PKCE, JWT validado no backend via JWKS; autorização por comunidade no DynamoDB (admins e convites por e-mail)
-- **Deploy (alvo):** CloudFront + API Gateway + AWS Lambda, domínio `awscommunity.com.br`
+- **Deploy (alvo):** CloudFront + API Gateway + AWS Lambda, domínio `link.awscommunity.com.br`
 - **Identidade visual:** referência em [awscommunityday.com.br](https://awscommunityday.com.br) (paleta azul-marinho + laranja AWS, tipografia Inter) — materializada no tema `aws` (padrão)
 
 ```
@@ -64,7 +64,7 @@ npm run dev
 
 ### Autenticação com Supabase (produção ou teste real)
 
-1. Crie um projeto em <https://supabase.com> e habilite os provedores desejados em *Authentication → Providers* (e-mail/senha, Google, GitHub…). Em *URL Configuration*, adicione `http://localhost:5173/admin` e `https://awscommunity.com.br/admin` como *Redirect URLs*.
+1. Crie um projeto em <https://supabase.com> e habilite os provedores desejados em *Authentication → Providers* (e-mail/senha, Google, GitHub…). Em *URL Configuration*, adicione `http://localhost:5173/admin` e `https://link.awscommunity.com.br/admin` como *Redirect URLs*.
 2. Frontend: copie `frontend/.env.example` para `frontend/.env` e preencha `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` e `VITE_SUPABASE_PROVIDERS`.
 3. Backend: defina `CL_AUTH_MODE=supabase` e `CL_SUPABASE_URL` (mesma URL do projeto). O JWT é validado via JWKS; para projetos legados com segredo HS256, defina também `CL_SUPABASE_JWT_SECRET`.
 4. Quem cria uma comunidade vira seu administrador; outros admins são convidados por e-mail na própria área administrativa e efetivados no primeiro login.

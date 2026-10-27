@@ -68,7 +68,7 @@ function loadMore() {
       <p>
         Portal agregador de links para comunidades. Crie uma página pública
         bonita e fácil de manter em
-        <strong style="color: var(--accent)">awscommunity.com.br/sua-comunidade</strong>.
+        <strong style="color: var(--accent)">link.awscommunity.com.br/sua-comunidade</strong>.
       </p>
       <RouterLink class="btn" to="/admin">Área administrativa ↗</RouterLink>
     </section>

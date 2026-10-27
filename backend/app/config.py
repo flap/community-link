@@ -15,7 +15,7 @@ class Settings(BaseSettings):
 
     # Identidade da aplicação
     app_name: str = "Community Link"
-    public_domain: str = "awscommunity.com.br"
+    public_domain: str = "link.awscommunity.com.br"
 
     # Autenticação (RF-022): "static" = credencial fixa (dev/testes); "supabase" = JWT do Supabase Auth
     auth_mode: str = "static"

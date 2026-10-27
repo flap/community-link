@@ -28,7 +28,7 @@ Principais desafios:
 
 ## Solução Proposta
 
-Uma plataforma **SaaS multi-tenant** na qual cada comunidade cria uma página pública bonita e fácil de manter, com URL própria (ex.: `awscommunity.com.br/minha-comunidade`), organizada em seções, com tipos de link ricos (vídeo, site, calendário, pessoas, LinkedIn, Instagram, TikTok, AWS Builder Center, Meetup), emojis, embeds e fotos de destaque.
+Uma plataforma **SaaS multi-tenant** na qual cada comunidade cria uma página pública bonita e fácil de manter, com URL própria (ex.: `link.awscommunity.com.br/minha-comunidade`), organizada em seções, com tipos de link ricos (vídeo, site, calendário, pessoas, LinkedIn, Instagram, TikTok, AWS Builder Center, Meetup), emojis, embeds e fotos de destaque.
 
 ```mermaid
 flowchart LR

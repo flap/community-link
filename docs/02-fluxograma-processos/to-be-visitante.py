@@ -20,7 +20,7 @@ with Diagram(
     show=False,
     graph_attr=graph_attr,
 ):
-    inicio = StartEnd("Visitante acessa\nawscommunity.com.br/slug")
+    inicio = StartEnd("Visitante acessa\nlink.awscommunity.com.br/slug")
 
     with Cluster("Entrega de Conteudo (AWS)", graph_attr={"bgcolor": "#eef5ff"}):
         cf = Action("CloudFront (CDN)")
