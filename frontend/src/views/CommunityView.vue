@@ -1,6 +1,6 @@
 <script setup>
-import { onMounted, ref, watch } from 'vue'
-import { getPublicCommunity, listThemes } from '../api'
+import { computed, onMounted, ref, watch } from 'vue'
+import { getPublicCommunity, listThemes, searchCommunity } from '../api'
 
 const props = defineProps({ slug: String })
 
@@ -13,6 +13,59 @@ const linkTypeLabel = {
   video: 'Vídeo', site: 'Site', calendario: 'Calendário', pessoa: 'Pessoa',
   linkedin: 'LinkedIn', instagram: 'Instagram', tiktok: 'TikTok',
   builder_center: 'AWS Builder Center', meetup: 'Meetup',
+}
+const linkTypes = Object.keys(linkTypeLabel)
+
+// -- Filtros/busca da comunidade (RF-012) ---------------------------------
+const filters = ref({ q: '', type: '', from: '', to: '' })
+const searching = ref(false)
+const searchError = ref('')
+const results = ref([])
+
+const filtersActive = computed(() =>
+  Boolean(filters.value.q || filters.value.type || filters.value.from || filters.value.to)
+)
+
+function toggleType(t) {
+  filters.value.type = filters.value.type === t ? '' : t
+  runSearch()
+}
+
+function clearFilters() {
+  filters.value = { q: '', type: '', from: '', to: '' }
+  results.value = []
+  searchError.value = ''
+}
+
+let searchTimer = null
+function debouncedSearch() {
+  clearTimeout(searchTimer)
+  searchTimer = setTimeout(runSearch, 300)
+}
+
+async function runSearch() {
+  if (!filtersActive.value) {
+    results.value = []
+    searchError.value = ''
+    return
+  }
+  searching.value = true
+  searchError.value = ''
+  try {
+    const data = await searchCommunity(props.slug, {
+      q: filters.value.q,
+      type: filters.value.type,
+      from: filters.value.from,
+      to: filters.value.to,
+      limit: 100,
+    })
+    results.value = data.results || []
+  } catch (e) {
+    searchError.value = e.message || 'Erro na busca'
+    results.value = []
+  } finally {
+    searching.value = false
+  }
 }
 
 function applyTheme() {
@@ -30,6 +83,7 @@ function applyTheme() {
 async function load() {
   loading.value = true
   error.value = ''
+  clearFilters()
   try {
     themes.value = await listThemes()
     community.value = await getPublicCommunity(props.slug)
@@ -65,6 +119,78 @@ watch(() => props.slug, load)
           </p>
         </header>
 
+        <!-- Barra de filtros/busca (RF-012) -->
+        <div class="filter-bar">
+          <input
+            v-model="filters.q"
+            class="filter-search"
+            type="search"
+            placeholder="Buscar por título, link ou autor…"
+            @input="debouncedSearch"
+          />
+          <div class="filter-chips">
+            <button
+              v-for="t in linkTypes"
+              :key="t"
+              type="button"
+              class="chip"
+              :class="{ active: filters.type === t }"
+              @click="toggleType(t)"
+            >
+              {{ linkTypeLabel[t] }}
+            </button>
+          </div>
+          <div class="filter-dates">
+            <label>
+              De
+              <input v-model="filters.from" type="date" @change="runSearch" />
+            </label>
+            <label>
+              Até
+              <input v-model="filters.to" type="date" @change="runSearch" />
+            </label>
+            <button
+              v-if="filtersActive"
+              type="button"
+              class="btn secondary chip-clear"
+              @click="clearFilters"
+            >
+              Limpar filtros
+            </button>
+          </div>
+        </div>
+
+        <!-- Resultados filtrados (RF-012) -->
+        <section v-if="filtersActive" class="search-results">
+          <p v-if="searching" class="muted">Buscando…</p>
+          <p v-else-if="searchError" class="error">{{ searchError }}</p>
+          <p v-else-if="!results.length" class="muted">
+            Nenhum link encontrado para os filtros selecionados.
+          </p>
+          <template v-else>
+            <p class="muted">{{ results.length }} resultado(s)</p>
+            <a
+              v-for="res in results"
+              :key="res.link.id"
+              class="link-card"
+              :href="res.link.url"
+              target="_blank"
+              rel="noopener"
+            >
+              <span v-if="res.link.emoji" class="link-emoji">{{ res.link.emoji }}</span>
+              <span>
+                <span class="link-title">{{ res.link.title }}</span><br />
+                <span class="link-type">
+                  {{ linkTypeLabel[res.link.type] || res.link.type }}
+                  <template v-if="res.link.author"> · {{ res.link.author }}</template>
+                </span>
+              </span>
+            </a>
+          </template>
+        </section>
+
+        <!-- Conteúdo normal da comunidade (sem filtros ativos) -->
+        <template v-else>
         <section v-for="section in community.sections" :key="section.id">
           <h2 class="section-title">{{ section.title }}</h2>
 
@@ -111,6 +237,7 @@ watch(() => props.slug, load)
         <p v-if="!community.sections.length" class="muted">
           Esta comunidade ainda não tem conteúdo publicado.
         </p>
+        </template>
       </template>
     </div>
   </div>

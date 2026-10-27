@@ -14,8 +14,10 @@ O modelo de dados segue o descrito na especificação técnica (seção 5):
 
 from __future__ import annotations
 
+import base64
 import threading
 from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
 
 from .models import (
     AdminInvite,
@@ -25,7 +27,9 @@ from .models import (
     CommunityUpdate,
     Link,
     LinkCreate,
+    LinkType,
     LinkUpdate,
+    SearchResult,
     Section,
     SectionCreate,
     SectionUpdate,
@@ -38,6 +42,106 @@ class NotFoundError(Exception):
 
 class ConflictError(Exception):
     pass
+
+
+# Teto de página para limitar custo/latência por request (RNF-005).
+MAX_SEARCH_LIMIT = 100
+DEFAULT_SEARCH_LIMIT = 20
+
+
+@dataclass
+class SearchPage:
+    """Uma página de resultados de busca (contrato interno do repositório).
+
+    ``items`` é a lista de :class:`SearchResult` já ordenada por ``created_at``
+    descendente; ``next_cursor`` é um cursor opaco (ou ``None`` na última
+    página). O mesmo contrato é produzido tanto pelo ``InMemoryRepository``
+    (simulando os GSIs em memória) quanto pelo ``DynamoDBRepository``.
+    """
+
+    items: list[SearchResult] = field(default_factory=list)
+    next_cursor: str | None = None
+
+
+def _author_key(author: str | None) -> str | None:
+    """Normalização determinística do autor para casamento case-insensitive."""
+    if author is None:
+        return None
+    key = author.strip().lower()
+    return key or None
+
+
+def _matches_q(link: Link, q: str | None, *, community_name: str | None = None) -> bool:
+    """Substring case-insensitive em title + url + author do link.
+
+    Na busca global, ``community_name`` também entra no casamento textual
+    (RF-013: "pesquisar ... e comunidades").
+    """
+    if not q:
+        return True
+    needle = q.strip().lower()
+    if not needle:
+        return True
+    haystacks = [link.title or "", link.url or "", link.author or ""]
+    if community_name:
+        haystacks.append(community_name)
+    return any(needle in h.lower() for h in haystacks)
+
+
+def _matches_filters(
+    link: Link,
+    *,
+    type: LinkType | None = None,
+    author: str | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+) -> bool:
+    """Aplica os filtros estruturados (tipo, autor, intervalo de data)."""
+    if type is not None and link.type != type:
+        return False
+    if author is not None:
+        wanted = _author_key(author)
+        if wanted is None:
+            return True
+        if _author_key(link.author) != wanted:
+            return False
+    if date_from is not None and link.created_at < date_from:
+        return False
+    if date_to is not None:
+        # ``to`` inclusivo: aceita qualquer created_at <= fim do instante.
+        if link.created_at > _date_to_upper(date_to):
+            return False
+    return True
+
+
+def _date_to_upper(date_to: str) -> str:
+    """Limite superior inclusivo para comparação lexicográfica de created_at.
+
+    O ``created_at`` é ISO-8601; comparado como string, basta um sufixo alto
+    (``\uffff``) para que um ``to`` como ``2026-10-27`` capture qualquer
+    timestamp daquele dia (``2026-10-27T23:59:59...``). Mesma convenção do
+    sufixo usado no ``BETWEEN`` dos GSIs no DynamoDB.
+    """
+    return date_to + "\uffff"
+
+
+def _encode_offset_cursor(offset: int) -> str:
+    return base64.urlsafe_b64encode(str(offset).encode()).decode()
+
+
+def _decode_offset_cursor(cursor: str | None) -> int:
+    if not cursor:
+        return 0
+    try:
+        return int(base64.urlsafe_b64decode(cursor.encode()).decode())
+    except (ValueError, Exception):  # noqa: BLE001 - cursor opaco inválido => início
+        return 0
+
+
+def _clamp_limit(limit: int) -> int:
+    if limit < 1:
+        return DEFAULT_SEARCH_LIMIT
+    return min(limit, MAX_SEARCH_LIMIT)
 
 
 class Repository(ABC):
@@ -117,6 +221,34 @@ class Repository(ABC):
 
     @abstractmethod
     def has_invite(self, slug: str, email: str) -> bool: ...
+
+    # Busca e filtros (RF-012 / RF-013 — Fase 2b)
+    @abstractmethod
+    def search_links_in_community(
+        self,
+        slug: str,
+        *,
+        q: str | None = None,
+        type: LinkType | None = None,
+        author: str | None = None,
+        date_from: str | None = None,
+        date_to: str | None = None,
+        limit: int = DEFAULT_SEARCH_LIMIT,
+        cursor: str | None = None,
+    ) -> SearchPage: ...
+
+    @abstractmethod
+    def search_links_global(
+        self,
+        *,
+        q: str | None = None,
+        type: LinkType | None = None,
+        author: str | None = None,
+        date_from: str | None = None,
+        date_to: str | None = None,
+        limit: int = DEFAULT_SEARCH_LIMIT,
+        cursor: str | None = None,
+    ) -> SearchPage: ...
 
 
 class InMemoryRepository(Repository):
@@ -328,8 +460,112 @@ class InMemoryRepository(Repository):
     def has_invite(self, slug: str, email: str) -> bool:
         return email.strip().lower() in self._invites.get(slug, {})
 
+    # -- Busca e filtros (RF-012 / RF-013 — Fase 2b) ------------------------
+    # O in-memory SIMULA os GSIs: itera os links, ordena por created_at desc,
+    # aplica os filtros em Python e pagina por offset. Produz exatamente o
+    # mesmo contrato (SearchPage) que o DynamoDBRepository produz via índices.
+    def _search(
+        self,
+        slugs: list[str],
+        *,
+        q: str | None,
+        type: LinkType | None,
+        author: str | None,
+        date_from: str | None,
+        date_to: str | None,
+        limit: int,
+        cursor: str | None,
+        match_community_name: bool,
+    ) -> SearchPage:
+        limit = _clamp_limit(limit)
+        matched: list[SearchResult] = []
+        for slug in slugs:
+            community = self._communities.get(slug)
+            if community is None:
+                continue
+            community_name = community.name
+            for link in self._links.get(slug, {}).values():
+                if not _matches_filters(
+                    link,
+                    type=type,
+                    author=author,
+                    date_from=date_from,
+                    date_to=date_to,
+                ):
+                    continue
+                if not _matches_q(
+                    link,
+                    q,
+                    community_name=community_name if match_community_name else None,
+                ):
+                    continue
+                matched.append(
+                    SearchResult(
+                        community_slug=slug,
+                        community_name=community_name,
+                        section_id=link.section_id,
+                        link=link,
+                    )
+                )
+        # Ordenação por created_at desc (desempate estável pelo id do link).
+        matched.sort(key=lambda r: (r.link.created_at, r.link.id), reverse=True)
+        offset = _decode_offset_cursor(cursor)
+        page = matched[offset : offset + limit]
+        next_cursor = (
+            _encode_offset_cursor(offset + limit)
+            if offset + limit < len(matched)
+            else None
+        )
+        return SearchPage(items=page, next_cursor=next_cursor)
 
-_repository: Repository | None = None
+    def search_links_in_community(
+        self,
+        slug: str,
+        *,
+        q: str | None = None,
+        type: LinkType | None = None,
+        author: str | None = None,
+        date_from: str | None = None,
+        date_to: str | None = None,
+        limit: int = DEFAULT_SEARCH_LIMIT,
+        cursor: str | None = None,
+    ) -> SearchPage:
+        self._ensure_community(slug)
+        return self._search(
+            [slug],
+            q=q,
+            type=type,
+            author=author,
+            date_from=date_from,
+            date_to=date_to,
+            limit=limit,
+            cursor=cursor,
+            match_community_name=False,
+        )
+
+    def search_links_global(
+        self,
+        *,
+        q: str | None = None,
+        type: LinkType | None = None,
+        author: str | None = None,
+        date_from: str | None = None,
+        date_to: str | None = None,
+        limit: int = DEFAULT_SEARCH_LIMIT,
+        cursor: str | None = None,
+    ) -> SearchPage:
+        slugs = list(self._communities.keys())
+        return self._search(
+            slugs,
+            q=q,
+            type=type,
+            author=author,
+            date_from=date_from,
+            date_to=date_to,
+            limit=limit,
+            cursor=cursor,
+            match_community_name=True,
+        )
 
 
 def get_repository() -> Repository:

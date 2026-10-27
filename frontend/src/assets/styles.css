@@ -198,3 +198,53 @@ label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px
   .site-header { padding: 12px 14px; }
   .site-header nav a { margin-left: 12px; }
 }
+
+/* ------- Busca e filtros (RF-012 / RF-013 — Fase 2b) ------- */
+.filter-bar {
+  background: var(--surface);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.filter-search { width: 100%; }
+.filter-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.08s ease, border-color 0.08s ease, color 0.08s ease;
+}
+.chip:hover { border-color: var(--accent); }
+.chip.active {
+  background: var(--accent);
+  color: #0b1220;
+  border-color: var(--accent);
+}
+.filter-dates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
+}
+.filter-dates label { margin: 0; flex: 1 1 140px; }
+.filter-dates input[type='date'] { margin-top: 4px; }
+.chip-clear { padding: 8px 14px; }
+
+.search-results { margin-top: 4px; }
+.global-search { width: 100%; }
+.result-origin {
+  font-size: 12px;
+  color: var(--accent);
+  text-decoration: none;
+}
+.result-origin:hover { text-decoration: underline; }

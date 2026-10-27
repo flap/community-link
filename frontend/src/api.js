@@ -44,6 +44,24 @@ async function request(path, { method = 'GET', body, auth = false } = {}) {
 export const listThemes = () => request('/themes')
 export const getPublicCommunity = (slug) => request(`/communities/${slug}`)
 
+// Busca e filtros (RF-012 / RF-013 — Fase 2b). Públicos, sem auth.
+// Omite params vazios para não enviar query strings inúteis.
+function searchQuery(params = {}) {
+  const usp = new URLSearchParams()
+  for (const [k, v] of Object.entries(params)) {
+    if (v === undefined || v === null || v === '') continue
+    usp.set(k, v)
+  }
+  const qs = usp.toString()
+  return qs ? `?${qs}` : ''
+}
+
+export const searchCommunity = (slug, params = {}) =>
+  request(`/communities/${slug}/search${searchQuery(params)}`)
+
+export const searchGlobal = (params = {}) =>
+  request(`/search${searchQuery(params)}`)
+
 // -- Admin -----------------------------------------------------------------
 export const me = () => request('/admin/me', { auth: true })
 export const listCommunities = () => request('/admin/communities', { auth: true })

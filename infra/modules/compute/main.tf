@@ -45,7 +45,10 @@ data "aws_iam_policy_document" "lambda_permissions" {
       "dynamodb:BatchWriteItem",
       "dynamodb:BatchGetItem",
     ]
-    resources = [var.dynamodb_table_arn]
+    resources = [
+      var.dynamodb_table_arn,
+      "${var.dynamodb_table_arn}/index/*",
+    ]
   }
 
   statement {

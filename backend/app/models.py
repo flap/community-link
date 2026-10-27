@@ -189,6 +189,32 @@ class PublicLink(Link):
     embed_data: dict | None = None
 
 
+# ---------------------------------------------------------------------------
+# Busca e filtros (RF-012 / RF-013 — Fase 2b)
+# ---------------------------------------------------------------------------
+class SearchResult(BaseModel):
+    """Um link encontrado pela busca, com indicação da comunidade de origem.
+
+    O ``community_slug``/``community_name`` atendem ao critério de aceite do
+    RF-013 ("com indicação da comunidade de origem"). O mesmo shape é usado
+    tanto na busca por comunidade quanto na global, para o frontend reutilizar
+    o mesmo componente de resultado.
+    """
+
+    community_slug: str
+    community_name: str
+    section_id: str
+    link: Link
+
+
+class SearchResponse(BaseModel):
+    """Página de resultados de busca (RF-012 / RF-013)."""
+
+    results: list[SearchResult] = []
+    next_cursor: str | None = None
+    count: int = 0
+
+
 class SectionWithLinks(Section):
     links: list[PublicLink] = []
 

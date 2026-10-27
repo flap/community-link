@@ -7,7 +7,10 @@ Cria a tabela DynamoDB single-table do Community Link, conforme
 
 - Chaves: `PK` (HASH) + `SK` (RANGE), ambas `String`.
 - Cobrança: `PAY_PER_REQUEST` (on-demand).
-- **Sem GSI/LSI** — o acesso é por `PK` + `begins_with(SK, ...)`.
+- **GSIs de busca (Fase 2b, RF-012/RF-013)**, ambos `ProjectionType=ALL`:
+  - `GSI1`: `GSI1PK=TYPE#{type}` / `GSI1SK={created_at}#{id}` — busca por tipo + data.
+  - `GSI2`: `GSI2PK=AUTHOR#{author}` / `GSI2SK={created_at}#{id}` — busca por autor (*sparse*).
+- Acesso base por `PK` + `begins_with(SK, ...)`, conforme o repositório.
 - Criptografia em repouso habilitada (chave gerenciada AWS).
 - PITR e deletion protection ativáveis (ligados por padrão).
 

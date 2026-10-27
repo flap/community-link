@@ -109,14 +109,16 @@ Desenvolver um **portal agregador de links SaaS multi-tenant** para comunidades,
 - **Regra de negócio:** filtros combináveis; aplicáveis dentro de uma comunidade e/ou globalmente.
 - **Critério de aceite:** ao aplicar filtros, apenas os links correspondentes são exibidos.
 - **Prioridade:** Should
-- **Fase:** 2
+- **Fase:** 2b — **implementada**
+- **Implementação:** `GET /api/communities/{slug}/search` (escopo comunidade) e `GET /api/search` (global), params combináveis `q`, `type`, `author`, `from`, `to`, `limit` (default 20, teto 100), `cursor`. Filtro **AND** entre critérios; ordenação por `created_at` **desc**. `type` inválido → 422; data malformada → 422; `from > to` coerente porém invertido → resultado vazio. Datas `from`/`to` inclusivas nas bordas.
 
 ### RF-013: Pesquisa de Conteúdo
 - **Descrição:** pesquisar por data, conteúdo (texto), autores e comunidades.
-- **Regra de negócio:** a busca considera título/descrição dos links, autor e comunidade.
+- **Regra de negócio:** a busca considera título/url/autor dos links e a comunidade de origem (o `Link` não possui `description`; o texto `q` casa em `title` + `url` + `author`, e na busca global também em `community_name`).
 - **Critério de aceite:** uma consulta retorna resultados relevantes, ordenados, com indicação da comunidade de origem.
 - **Prioridade:** Could
-- **Fase:** 2
+- **Fase:** 2b — **implementada**
+- **Implementação:** busca global **pública** em `GET /api/search`; cada resultado (`SearchResult`) carrega `community_slug` + `community_name` (indicação da origem) e o `link` completo. Abordagem de **busca simples**: `type` → query no GSI1; `author` (sem type) → GSI2; sem `type`/`author` → fan-out por tipo + merge; o texto `q` é casado por substring (case-insensitive) em memória sobre o subconjunto já restringido. Paginação por cursor opaco (offset materializado em memória na busca global). Sem serviço de busca dedicado (sem OpenSearch).
 
 ### RF-014: Identidade Visual de Referência (AWS Community Day Brasil)
 - **Descrição:** o layout e a identidade visual do produto seguem como referência o site **awscommunityday.com.br**.
@@ -400,10 +402,12 @@ O vínculo admin ↔ comunidade é gravado em **duas direções** para permitir 
 - **`order`**: ordena seções e links na renderização.
 - **`created_at`**: base para filtros/pesquisa por data (Fase 2).
 
-### Índices para Fase 2 (busca/filtros)
+### Índices para Fase 2 (busca/filtros) — **Fase 2b implementada**
 
-- **GSI1** — por tipo de conteúdo: `GSI1PK = TYPE#{type}`, `GSI1SK = {created_at}` (filtro por tipo + data).
-- **GSI2** — por autor: `GSI2PK = AUTHOR#{author}`, `GSI2SK = {created_at}`.
+- **GSI1** — por tipo de conteúdo: `GSI1PK = TYPE#{type}`, `GSI1SK = {created_at}#{id}` (filtro por tipo + data). **ProjectionType = ALL**.
+- **GSI2** — por autor (*sparse*, só links com autor): `GSI2PK = AUTHOR#{author_normalizado}`, `GSI2SK = {created_at}#{id}`. **ProjectionType = ALL**.
+- **Convenção do sort key** `GSI1SK/GSI2SK = {created_at}#{id}`: `created_at` é ISO-8601 (ordenável lexicograficamente = cronologicamente) e `#{id}` garante SK único e paginação estável quando dois links compartilham timestamp. O range de data usa `BETWEEN :from AND :to` com `:to = {to}#\uffff` para capturar todos os ids do limite superior (inclusivo).
+- **Atributos de índice gravados no item Link:** `GSI1PK`/`GSI1SK` sempre; `GSI2PK`/`GSI2SK` somente quando há `author` (índice *sparse*). O `author` é normalizado por `strip().lower()` na chave; o valor exibido continua sendo o `author` original (projeção `ALL`). Tabela staging vazia → **sem backfill**.
 - Busca textual mais rica pode, se necessário, apoiar-se em serviço de busca dedicado em iteração posterior.
 
 ---
