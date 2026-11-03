@@ -108,6 +108,7 @@ Desenvolver um **portal agregador de links SaaS multi-tenant** para comunidades,
 - **Descrição:** filtrar links por data e por tipo de conteúdo.
 - **Regra de negócio:** filtros combináveis; aplicáveis dentro de uma comunidade e/ou globalmente.
 - **Critério de aceite:** ao aplicar filtros, apenas os links correspondentes são exibidos.
+- **UX:** a barra de filtros começa colapsada e se expande quando a busca inicia (ver RF-023).
 - **Prioridade:** Should
 - **Fase:** 2b — **implementada**
 - **Implementação:** `GET /api/communities/{slug}/search` (escopo comunidade) e `GET /api/search` (global), params combináveis `q`, `type`, `author`, `from`, `to`, `limit` (default 20, teto 100), `cursor`. Filtro **AND** entre critérios; ordenação por `created_at` **desc**. `type` inválido → 422; data malformada → 422; `from > to` coerente porém invertido → resultado vazio. Datas `from`/`to` inclusivas nas bordas.
@@ -212,6 +213,28 @@ Desenvolver um **portal agregador de links SaaS multi-tenant** para comunidades,
   - [ ] Modo padrão em produção é `supabase`.
 - **Prioridade:** Should
 - **Fase:** 2
+
+### RF-023: Barra de Busca e Filtros Colapsável
+- **Descrição:** na página pública da comunidade, a barra de busca e filtros (RF-012) começa **colapsada**: só a caixa de texto de busca aparece. Os filtros (chips de tipo de conteúdo e intervalo de datas) se **expandem quando uma busca inicia**. A caixa de busca mostra um **emoji de lupa (🔍) no canto superior esquerdo**.
+- **Origem:** pedido de ajuste de UX (2026-11-03), sobre a implementação da Fase 2b.
+- **Regra de negócio:**
+  - Uma busca **inicia** quando o visitante digita algo na caixa de texto (pelo menos um caractere que não seja espaço). Clicar ou focar a caixa não basta.
+  - A expansão é **imediata**, a cada digitação, sem esperar o debounce da consulta (300 ms).
+  - A barra **permanece expandida** enquanto houver texto de busca **ou** qualquer filtro ativo (tipo ou data). Assim, o visitante continua vendo os filtros que aplicou, mesmo depois de apagar o texto.
+  - A barra **volta a colapsar** quando o texto fica vazio e nenhum filtro está ativo, ao acionar "Limpar filtros" ou ao trocar de comunidade.
+  - A lupa é **decorativa**: não é focável, fica fora da árvore de acessibilidade (`aria-hidden`) e não altera o texto digitado. O campo mantém um rótulo acessível ("Buscar links nesta comunidade").
+  - Os filtros colapsados ficam **fora do fluxo de tabulação e da árvore de acessibilidade** (`display: none`). A caixa de busca referencia a região de filtros com `aria-controls`, e a região é um grupo rotulado (`role="group"`, "Filtros da busca"). Não usamos `aria-expanded`, porque o ARIA 1.2 não o permite no papel `searchbox`.
+  - A animação de expandir/colapsar respeita `prefers-reduced-motion`.
+- **Critério de aceite:**
+  - [x] Ao abrir `/{slug}`, os chips de tipo e os campos de data **não** aparecem; só a caixa de busca com 🔍 é visível.
+  - [x] Ao digitar um caractere, os filtros aparecem na hora (região `#community-filters` visível e referenciada pela caixa via `aria-controls`).
+  - [x] Digitar apenas espaços **não** expande a barra.
+  - [x] Com um chip de tipo ativo, apagar o texto mantém a barra expandida. Clicar em "Limpar filtros" colapsa a barra e volta ao conteúdo normal.
+  - [x] A lupa fica no canto superior esquerdo da caixa e não sobrepõe o texto digitado nem o placeholder.
+  - [x] Navegar com Tab, com a barra colapsada, não passa pelos chips nem pelos campos de data.
+- **Prioridade:** Should
+- **Fase:** 2c — **implementada**
+- **Implementação:** `frontend/src/views/CommunityView.vue` (computed `filtersExpanded`, região `#community-filters` com `v-show`) + estilos `.search-field`, `.search-icon` e `.filter-panel` em `frontend/src/assets/styles.css`. Sem alteração de API: os endpoints do RF-012 continuam iguais.
 
 ---
 
@@ -459,6 +482,7 @@ O vínculo admin ↔ comunidade é gravado em **duas direções** para permitir 
 | 1 | Cadastro de comunidade, seções, links ricos, emojis, embeds, foto de destaque, temas, edição fácil, página pública, auth simplificada, edição/reordenação | RF-001 a RF-011, RF-014 a RF-018; RNF-001 a RNF-006; INT-001 a INT-005 | Conta AWS; stack Vue + FastAPI + DynamoDB provisionada |
 | 2a | **Autenticação e autorização** com Supabase Auth: login e-mail/senha e social, tela própria, admins por comunidade e convites | RF-019 a RF-022; INT-006; RN-006, RN-007 | Projeto Supabase criado; provedores sociais (Google, GitHub…) configurados no Supabase |
 | 2b | Filtros e pesquisa | RF-012, RF-013; GSIs de busca | Fase 2a concluída; volume de dados para busca |
+| 2c | Ajustes de UX da busca: barra de busca/filtros colapsável e lupa na caixa de busca | RF-023 | Fase 2b concluída |
 | Futura | Analytics, domínio custom, monetização | A especificar | Definição de produto |
 
 ---

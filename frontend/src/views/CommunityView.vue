@@ -23,8 +23,14 @@ const searchError = ref('')
 const results = ref([])
 
 const filtersActive = computed(() =>
-  Boolean(filters.value.q || filters.value.type || filters.value.from || filters.value.to)
+  Boolean(filters.value.q.trim() || filters.value.type || filters.value.from || filters.value.to)
 )
+
+// RF-023: a barra de filtros começa colapsada e expande quando a busca inicia
+// (texto não-vazio digitado). Permanece aberta enquanto houver qualquer filtro
+// ativo, para que o visitante veja/limpe o que aplicou. Reativo ao v-model, então
+// expande imediatamente, sem esperar o debounce da consulta.
+const filtersExpanded = filtersActive
 
 function toggleType(t) {
   filters.value.type = filters.value.type === t ? '' : t
@@ -53,7 +59,7 @@ async function runSearch() {
   searchError.value = ''
   try {
     const data = await searchCommunity(props.slug, {
-      q: filters.value.q,
+      q: filters.value.q.trim(),
       type: filters.value.type,
       from: filters.value.from,
       to: filters.value.to,
@@ -119,45 +125,62 @@ watch(() => props.slug, load)
           </p>
         </header>
 
-        <!-- Barra de filtros/busca (RF-012) -->
+        <!-- Barra de filtros/busca (RF-012) — colapsável com lupa (RF-023) -->
         <div class="filter-bar">
-          <input
-            v-model="filters.q"
-            class="filter-search"
-            type="search"
-            placeholder="Buscar por título, link ou autor…"
-            @input="debouncedSearch"
-          />
-          <div class="filter-chips">
-            <button
-              v-for="t in linkTypes"
-              :key="t"
-              type="button"
-              class="chip"
-              :class="{ active: filters.type === t }"
-              @click="toggleType(t)"
-            >
-              {{ linkTypeLabel[t] }}
-            </button>
+          <div class="search-field">
+            <span class="search-icon" aria-hidden="true">🔍</span>
+            <input
+              v-model="filters.q"
+              class="filter-search"
+              type="search"
+              aria-label="Buscar links nesta comunidade"
+              aria-controls="community-filters"
+              placeholder="Buscar por título, link ou autor…"
+              @input="debouncedSearch"
+            />
           </div>
-          <div class="filter-dates">
-            <label>
-              De
-              <input v-model="filters.from" type="date" @change="runSearch" />
-            </label>
-            <label>
-              Até
-              <input v-model="filters.to" type="date" @change="runSearch" />
-            </label>
-            <button
-              v-if="filtersActive"
-              type="button"
-              class="btn secondary chip-clear"
-              @click="clearFilters"
+          <!-- Filtros: colapsados até a busca iniciar (RF-023). v-show => display:none,
+               fora do fluxo de Tab e da árvore de acessibilidade enquanto fechados. -->
+          <Transition name="filter-panel">
+            <div
+              v-show="filtersExpanded"
+              id="community-filters"
+              class="filter-panel"
+              role="group"
+              aria-label="Filtros da busca"
             >
-              Limpar filtros
-            </button>
-          </div>
+              <div class="filter-chips">
+                <button
+                  v-for="t in linkTypes"
+                  :key="t"
+                  type="button"
+                  class="chip"
+                  :class="{ active: filters.type === t }"
+                  @click="toggleType(t)"
+                >
+                  {{ linkTypeLabel[t] }}
+                </button>
+              </div>
+              <div class="filter-dates">
+                <label>
+                  De
+                  <input v-model="filters.from" type="date" @change="runSearch" />
+                </label>
+                <label>
+                  Até
+                  <input v-model="filters.to" type="date" @change="runSearch" />
+                </label>
+                <button
+                  v-if="filtersActive"
+                  type="button"
+                  class="btn secondary chip-clear"
+                  @click="clearFilters"
+                >
+                  Limpar filtros
+                </button>
+              </div>
+            </div>
+          </Transition>
         </div>
 
         <!-- Resultados filtrados (RF-012) -->

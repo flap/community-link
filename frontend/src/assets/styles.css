@@ -211,6 +211,30 @@ label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px
   gap: 12px;
 }
 .filter-search { width: 100%; }
+
+/* RF-023: lupa decorativa no canto superior esquerdo da caixa de busca */
+.search-field { position: relative; }
+.search-field .filter-search { padding-left: 40px; }
+.search-icon {
+  position: absolute;
+  top: 9px;
+  left: 12px;
+  font-size: 16px;
+  line-height: 1;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* RF-023: painel de filtros colapsável (expande quando a busca inicia) */
+.filter-panel { display: flex; flex-direction: column; gap: 12px; }
+.filter-panel-enter-active,
+.filter-panel-leave-active { transition: opacity 0.15s ease, transform 0.15s ease; }
+.filter-panel-enter-from,
+.filter-panel-leave-to { opacity: 0; transform: translateY(-4px); }
+@media (prefers-reduced-motion: reduce) {
+  .filter-panel-enter-active,
+  .filter-panel-leave-active { transition: none; }
+}
 .filter-chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .chip {
   background: transparent;

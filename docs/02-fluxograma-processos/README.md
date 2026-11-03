@@ -102,7 +102,7 @@ Na Fase 2, o visitante pode buscar e filtrar conteúdo por data, tipo, autor e c
 | # | Etapa | Responsável | Sistema | Tempo Estimado | Observações |
 |---|-------|-------------|---------|----------------|-------------|
 | 1 | Quer encontrar conteúdo | Visitante | Frontend | — | Gatilho |
-| 2 | Digita termo / aplica filtros | Visitante | Frontend Vue | — | Data, tipo, autor, comunidade |
+| 2 | Digita termo / aplica filtros | Visitante | Frontend Vue | — | Data, tipo, autor, comunidade. Na página da comunidade, a barra de filtros começa colapsada e se expande ao digitar o primeiro caractere (RF-023) |
 | 3 | Envia consulta | Sistema | API Gateway + Lambda | <100ms | — |
 | 4 | Consulta índice | Sistema | DynamoDB (GSI) | <100ms | Índices por atributo |
 | 5 | Retorna lista filtrada/ordenada | Sistema | API | <200ms | — |
