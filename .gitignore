@@ -32,3 +32,6 @@ frontend/.env
 
 # Workflow process artifacts
 .agents/
+
+# Credenciais locais (nunca versionar)
+.secrets/
