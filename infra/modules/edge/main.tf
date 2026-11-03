@@ -67,6 +67,10 @@ resource "aws_cloudfront_distribution" "this" {
   price_class         = var.price_class
   is_ipv6_enabled     = true
 
+  # Domínios customizados (ex.: link.awscommunity.com.br). Exigem certificado ACM
+  # em us-east-1 cobrindo cada alias (ver viewer_certificate abaixo).
+  aliases = var.aliases
+
   # Origem 1: SPA (S3 privado via OAC)
   origin {
     origin_id                = local.spa_origin_id
@@ -149,8 +153,13 @@ resource "aws_cloudfront_distribution" "this" {
     }
   }
 
+  # Certificado: usa o ACM customizado (SNI) quando um ARN é fornecido;
+  # caso contrário, mantém o certificado padrão *.cloudfront.net.
   viewer_certificate {
-    cloudfront_default_certificate = true
+    cloudfront_default_certificate = var.acm_certificate_arn == ""
+    acm_certificate_arn            = var.acm_certificate_arn != "" ? var.acm_certificate_arn : null
+    ssl_support_method             = var.acm_certificate_arn != "" ? "sni-only" : null
+    minimum_protocol_version       = var.acm_certificate_arn != "" ? "TLSv1.2_2021" : "TLSv1"
   }
 
   tags = var.tags

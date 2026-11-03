@@ -10,6 +10,32 @@ provider "aws" {
   }
 }
 
+# Provider aliasado para a CONTA DE DNS (Opção A).
+#
+# O app inteiro (S3, Lambda, DynamoDB, CloudFront, certificado ACM) é criado na
+# conta default (app, 390686807269). APENAS os registros Route 53 (validação do
+# ACM e ALIAS do subdomínio) são criados na conta de DNS (070008302080), onde
+# vive a hosted zone awscommunity.com.br — assumindo var.dns_account_role_arn.
+#
+# Fallback: se dns_account_role_arn estiver vazio, este provider aponta para a
+# própria conta default (útil quando a zona está na mesma conta, p.ex. testes).
+provider "aws" {
+  alias  = "dns"
+  region = var.aws_region
+
+  dynamic "assume_role" {
+    for_each = var.dns_account_role_arn != "" ? [var.dns_account_role_arn] : []
+    content {
+      role_arn     = assume_role.value
+      session_name = "community-link-prod-dns"
+    }
+  }
+
+  default_tags {
+    tags = var.tags
+  }
+}
+
 data "aws_caller_identity" "current" {}
 
 locals {
@@ -113,6 +139,32 @@ module "compute" {
   tags                = var.tags
 }
 
+# --- DNS: lookup da hosted zone (quando há domínio customizado) -----------
+# A zona vive na CONTA DE DNS -> usa o provider aliasado aws.dns.
+data "aws_route53_zone" "this" {
+  provider     = aws.dns
+  count        = var.domain_name != "" ? 1 : 0
+  name         = var.hosted_zone_name
+  private_zone = false
+}
+
+# --- ACM: certificado do domínio customizado (us-east-1) ------------------
+# Cert na conta do app (provider default); registros de validação na conta de
+# DNS (aws.dns). Não depende do CloudFront; o grafo fica linear: acm -> edge -> dns-alias.
+module "acm" {
+  source = "../../modules/acm"
+  count  = var.domain_name != "" ? 1 : 0
+
+  providers = {
+    aws     = aws
+    aws.dns = aws.dns
+  }
+
+  domain_name    = var.domain_name
+  hosted_zone_id = data.aws_route53_zone.this[0].zone_id
+  tags           = var.tags
+}
+
 # --- Edge (CloudFront) ----------------------------------------------------
 module "edge" {
   source = "../../modules/edge"
@@ -121,5 +173,23 @@ module "edge" {
   spa_bucket_regional_domain_name   = module.spa_bucket.bucket_regional_domain_name
   media_bucket_regional_domain_name = module.media_bucket.bucket_regional_domain_name
   api_origin_domain_name            = replace(module.compute.http_api_endpoint, "https://", "")
+  aliases                           = var.domain_name != "" ? [var.domain_name] : []
+  acm_certificate_arn               = var.domain_name != "" ? module.acm[0].certificate_arn : ""
   tags                              = var.tags
+}
+
+# --- DNS: registros ALIAS A/AAAA apontando o domínio para o CloudFront ----
+# Registros na CONTA DE DNS -> instancia o módulo com providers = { aws = aws.dns }.
+module "dns_alias" {
+  source = "../../modules/dns-alias"
+  count  = var.domain_name != "" ? 1 : 0
+
+  providers = {
+    aws = aws.dns
+  }
+
+  domain_name                 = var.domain_name
+  hosted_zone_id              = data.aws_route53_zone.this[0].zone_id
+  distribution_domain_name    = module.edge.distribution_domain_name
+  distribution_hosted_zone_id = module.edge.distribution_hosted_zone_id
 }

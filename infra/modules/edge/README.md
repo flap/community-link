@@ -16,7 +16,9 @@ Cria uma única distribuição CloudFront que serve o projeto inteiro:
 - **2 CloudFront Functions** (viewer-request): SPA fallback e strip do `/media`.
 - Managed cache/origin-request policies referenciadas por ID well-known:
   - `CachingOptimized` (SPA/media), `CachingDisabled` + `AllViewerExceptHostHeader` (API).
-- Certificado CloudFront padrão (trocar por ACM ao usar domínio custom).
+- Certificado: usa o padrão `*.cloudfront.net` por padrão; informe `aliases` +
+  `acm_certificate_arn` (ACM em **us-east-1**) para servir um domínio customizado
+  (ex.: `link.awscommunity.com.br`) via SNI com `TLSv1.2_2021`.
 
 ## Uso
 
@@ -28,7 +30,12 @@ module "edge" {
   spa_bucket_regional_domain_name   = module.spa_bucket.bucket_regional_domain_name
   media_bucket_regional_domain_name = module.media_bucket.bucket_regional_domain_name
   api_origin_domain_name            = replace(module.compute.http_api_endpoint, "https://", "")
-  tags                              = { Environment = "prod" }
+
+  # Domínio customizado (opcional):
+  aliases             = ["link.awscommunity.com.br"]
+  acm_certificate_arn = module.acm.certificate_arn # ACM em us-east-1
+
+  tags = { Environment = "prod" }
 }
 ```
 
@@ -47,6 +54,8 @@ module "edge" {
 | `spa_bucket_regional_domain_name` | Domínio da origem SPA. | `string` | n/a |
 | `media_bucket_regional_domain_name` | Domínio da origem media. | `string` | n/a |
 | `api_origin_domain_name` | Domínio do HTTP API (sem esquema/path). | `string` | n/a |
+| `aliases` | Domínios customizados (CNAMEs) da distribuição. | `list(string)` | `[]` |
+| `acm_certificate_arn` | ARN do ACM (us-east-1) que cobre os `aliases`. | `string` | `""` |
 | `media_path_prefix` | Prefixo público da mídia. | `string` | `/media` |
 | `price_class` | Price class da distribuição. | `string` | `PriceClass_100` |
 | `tags` | Tags. | `map(string)` | `{}` |
@@ -58,3 +67,4 @@ module "edge" {
 | `distribution_id` | ID da distribuição. |
 | `distribution_arn` | ARN (para policies OAC dos buckets). |
 | `distribution_domain_name` | Domínio público. |
+| `distribution_hosted_zone_id` | Hosted zone ID do CloudFront (para ALIAS no Route 53). |

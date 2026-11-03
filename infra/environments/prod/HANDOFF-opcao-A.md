@@ -1,5 +1,11 @@
 # Handoff — Prod na Opção A (app em 390686807269, DNS em 070008302080)
 
+> **STATUS: CONCLUÍDO em 2026-11-03** (issue #17). A role `community-link-dns-manager`
+> foi criada via `environments/dns-account`, o prod antigo da 070008302080 foi
+> destruído via Terraform e o prod novo foi aplicado na 390686807269 (CloudFront
+> `EQLT002TLD52R`, auth `supabase`). `terraform plan` está limpo em `prod` e em
+> `dns-account`. As seções abaixo ficam como registro histórico do diagnóstico.
+
 Decisão do usuário: o ambiente **prod roda na conta 390686807269** (a mesma do
 staging). A conta **070008302080** hospeda **apenas** a hosted zone Route 53 do
 domínio `awscommunity.com.br`. O SSM de configuração fica **nesta** conta

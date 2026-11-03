@@ -24,6 +24,18 @@ variable "media_path_prefix" {
   default     = "/media"
 }
 
+variable "aliases" {
+  description = "CNAMEs (domínios customizados) da distribuição CloudFront, ex.: [\"link.awscommunity.com.br\"]. Vazio mantém apenas o domínio *.cloudfront.net."
+  type        = list(string)
+  default     = []
+}
+
+variable "acm_certificate_arn" {
+  description = "ARN do certificado ACM em us-east-1 que cobre os aliases. Vazio usa o certificado padrão do CloudFront (*.cloudfront.net)."
+  type        = string
+  default     = ""
+}
+
 variable "price_class" {
   description = "Price class da distribuição CloudFront."
   type        = string
